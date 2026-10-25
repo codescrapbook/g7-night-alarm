@@ -1,0 +1,43 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jdk wget unzip curl git libglu1-mesa qemu-kvm libvirt-daemon-system libvirt-clients \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools && \
+    cd $ANDROID_SDK_ROOT/cmdline-tools && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip && \
+    unzip -q tools.zip -d tmp && rm tools.zip && \
+    mv tmp/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest && rm -rf tmp
+ENV PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
+
+RUN yes | sdkmanager --licenses >/dev/null
+RUN sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
+    "system-images;android-35;google_apis;x86_64" >/dev/null
+
+RUN avdmanager create avd -n test-avd -k "system-images;android-35;google_apis;x86_64" --device "pixel" --abi x86_64 --force
+
+WORKDIR /workspace
+COPY . /workspace
+
+RUN chmod +x ./gradlew
+
+CMD bash -lc '\
+  $ANDROID_SDK_ROOT/emulator/emulator -avd test-avd -no-window -no-audio -gpu swiftshader_indirect -no-snapshot -accel on -no-boot-anim & \
+  EMU_PID=$!; \
+  trap "kill $EMU_PID || true" EXIT; \
+  adb wait-for-device; \
+  adb shell settings put global window_animation_scale 0; \
+  adb shell settings put global transition_animation_scale 0; \
+  adb shell settings put global animator_duration_scale 0; \
+  ./gradlew --no-daemon assembleDebug assembleAndroidTest; \
+  adb install -r app/build/outputs/apk/debug/app-debug.apk; \
+  adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk; \
+  ./gradlew --no-daemon connectedDebugAndroidTest || true; \
+  mkdir -p /workspace/artifacts && cp -r app/build/reports/androidTests/* /workspace/artifacts/ || true; \
+  adb logcat -d > /workspace/artifacts/logcat.txt || true; \
+  echo "Done" \
+'
+

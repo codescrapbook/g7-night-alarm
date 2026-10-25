@@ -35,7 +35,19 @@ data class SettingsState(
     val voiceEnabled: Boolean = false,
     val safetyNetAlwaysFull: Boolean = true,
     val autoSleepHour: Int = 23,
-    val autoSleepMinute: Int = 0
+    val autoSleepMinute: Int = 0,
+    val awakeVolumePercent: Int = 60,
+    val awakeLowWarnMin: Double = 70.0,
+    val awakeLowWarnMax: Double = 80.0,
+    val awakeLowWarnRearmMin: Int = 30,
+    val awakeLowBelow70RearmMin: Int = 15,
+    val awakeHighRearmMin: Int = 60,
+    val awakeSignalLostRearmMin: Int = 30
+    ,
+    val lastLowWarnClearAt: Long = 0L,
+    val lastLowClearAt: Long = 0L,
+    val lastHighClearAt: Long = 0L,
+    val lastSignalClearAt: Long = 0L
 )
 
 object SettingsKeys {
@@ -52,6 +64,18 @@ object SettingsKeys {
     val safetyNetAlwaysFull = booleanPreferencesKey("safety_net_full")
     val autoSleepHour = intPreferencesKey("auto_sleep_hour")
     val autoSleepMinute = intPreferencesKey("auto_sleep_minute")
+    val awakeVolumePercent = intPreferencesKey("awake_volume_percent")
+    val awakeLowWarnMin = doublePreferencesKey("awake_low_warn_min")
+    val awakeLowWarnMax = doublePreferencesKey("awake_low_warn_max")
+    val awakeLowWarnRearmMin = intPreferencesKey("awake_low_warn_rearm_min")
+    val awakeLowBelow70RearmMin = intPreferencesKey("awake_low_below70_rearm_min")
+    val awakeHighRearmMin = intPreferencesKey("awake_high_rearm_min")
+    val awakeSignalLostRearmMin = intPreferencesKey("awake_signal_rearm_min")
+    // last clear timestamps
+    val lastLowWarnClearAt = longPreferencesKey("last_low_warn_clear_at")
+    val lastLowClearAt = longPreferencesKey("last_low_clear_at")
+    val lastHighClearAt = longPreferencesKey("last_high_clear_at")
+    val lastSignalClearAt = longPreferencesKey("last_signal_clear_at")
 }
 
 class SettingsRepository(private val context: Context) {
@@ -74,7 +98,18 @@ class SettingsRepository(private val context: Context) {
             voiceEnabled = prefs[SettingsKeys.voiceEnabled] ?: false,
             safetyNetAlwaysFull = prefs[SettingsKeys.safetyNetAlwaysFull] ?: true,
             autoSleepHour = prefs[SettingsKeys.autoSleepHour] ?: 23,
-            autoSleepMinute = prefs[SettingsKeys.autoSleepMinute] ?: 0
+            autoSleepMinute = prefs[SettingsKeys.autoSleepMinute] ?: 0,
+            awakeVolumePercent = prefs[SettingsKeys.awakeVolumePercent] ?: 60,
+            awakeLowWarnMin = prefs[SettingsKeys.awakeLowWarnMin] ?: 70.0,
+            awakeLowWarnMax = prefs[SettingsKeys.awakeLowWarnMax] ?: 80.0,
+            awakeLowWarnRearmMin = prefs[SettingsKeys.awakeLowWarnRearmMin] ?: 30,
+            awakeLowBelow70RearmMin = prefs[SettingsKeys.awakeLowBelow70RearmMin] ?: 15,
+            awakeHighRearmMin = prefs[SettingsKeys.awakeHighRearmMin] ?: 60,
+            awakeSignalLostRearmMin = prefs[SettingsKeys.awakeSignalLostRearmMin] ?: 30,
+            lastLowWarnClearAt = prefs[SettingsKeys.lastLowWarnClearAt] ?: 0L,
+            lastLowClearAt = prefs[SettingsKeys.lastLowClearAt] ?: 0L,
+            lastHighClearAt = prefs[SettingsKeys.lastHighClearAt] ?: 0L,
+            lastSignalClearAt = prefs[SettingsKeys.lastSignalClearAt] ?: 0L
         )
     }
 

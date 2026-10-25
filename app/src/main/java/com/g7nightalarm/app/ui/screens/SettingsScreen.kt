@@ -50,6 +50,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     var safetyNetFull by remember { mutableStateOf(state.safetyNetAlwaysFull) }
     var autoHour by remember { mutableStateOf(state.autoSleepHour.toString()) }
     var autoMinute by remember { mutableStateOf(state.autoSleepMinute.toString()) }
+    var awakeVol by remember { mutableStateOf(state.awakeVolumePercent.toString()) }
     val scope = remember { CoroutineScope(Dispatchers.IO) }
     val alarm = remember { AlarmController(context) }
 
@@ -84,6 +85,18 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Switch(checked = safetyNetFull, onCheckedChange = { safetyNetFull = it })
             }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(awakeVol, onValueChange = { awakeVol = it.filter { ch -> ch.isDigit() }.take(3) }, label = { Text("Awake volume % (alarm stream)") })
+            Button(onClick = {
+                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                // preview a pleasant chime at this volume
+                val am = com.g7nightalarm.app.alarm.AlarmController(context)
+                scope.launch { 
+                    // run quick preview
+                    am.previewAwakeChime(vol) 
+                }
+            }) { Text("Preview") }
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Units: ${if (state.units == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"}")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -113,6 +126,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         p[SettingsKeys.safetyNetAlwaysFull] = safetyNetFull
                         p[SettingsKeys.autoSleepHour] = autoHour.toIntOrNull()?.coerceIn(0, 23) ?: 23
                         p[SettingsKeys.autoSleepMinute] = autoMinute.toIntOrNull()?.coerceIn(0, 59) ?: 0
+                        p[SettingsKeys.awakeVolumePercent] = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
                     }
                 }
             }) { Text("Save") }

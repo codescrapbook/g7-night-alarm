@@ -21,7 +21,13 @@ What it does
   - Auto‑enable nightly: by default 23:00 local time (configurable). Exact alarm schedules daily and announces: “Turning on for sleep.” There is no automatic switch back; use button or voice “good morning”.
   - Alarm behavior by mode:
     - Sleep Mode: full screeching max‑volume alarm for all configured conditions.
-    - Awake Mode: normal (not max‑volume) notification/voice alert for low/high/rapid‑fall; BUT “urgent low (<55)” and “no data ≥ 30 minutes” always use the full screeching alarm (safety net; can be disabled in settings).
+    - Awake Mode (revised):
+      - Adjustable Awake volume (alarm stream), with Preview in Settings.
+      - Pleasant distinct sounds: low, high, and signal‑loss (30 min).
+      - Low‑warning band (default 70–80 mg/dL): loop at Awake volume until cleared; after clearing, do not re‑sound for 30 min (configurable).
+      - Low (<70): ramp from Awake volume to full max volume over 5 minutes (smooth), then switch to urgent screech and stay at max until cleared. Urgent low (<55) starts ramp higher. After clearing a sub‑70 low, re‑alarm sooner (default 15 min).
+      - High: play at Awake volume, no escalation; re‑alarm after clearing (default 60 min).
+      - Signal lost (≥30 min): its own sound at Awake volume, no escalation; re‑alarm after clearing (default 30 min).
 - Full‑screen alarm activity over the lock screen with press‑and‑hold dismiss; looping harsh tone (2.6–3.4 kHz square‑like), continuous vibration, flashing background; volume forced to max for the alarm and restored on dismiss.
 - Permissions onboarding in Settings with shortcuts for Notifications, Battery optimization exemption, and Do Not Disturb access; “Test alarm” button.
 - Unit tests: alarm‑condition logic, xDrip+ intent constants, and schedule next‑run computation.
@@ -46,14 +52,14 @@ Permissions to grant (on first run or via Settings)
 - Foreground service (granted automatically)
 - Microphone (only if you enable Voice control)
 
-Offline voice control (optional)
---------------------------------
-This app uses Vosk for offline keyword spotting. To keep the APK small, the English model is not bundled.
-- Download “vosk-model-small-en-us” from `https://alphacephei.com/vosk/models` on a computer.
-- Extract the folder and copy it to the tablet into: Android/data/com.g7nightalarm.app/files/ so it becomes:
-  - `Android/data/com.g7nightalarm.app/files/vosk-model-small-en-us/...`
-- In app Settings, enable “Voice control”. The service will load the model and start listening for “good night” / “good morning” hands‑free.
-- Voice pauses automatically while a full alarm is sounding to avoid confusion.
+Offline voice control (optional; auto‑download)
+-----------------------------------------------
+This app uses Vosk for offline keyword spotting. When you enable “Voice control” in Settings, the app will:
+- Automatically download the small English model `vosk-model-small-en-us-0.15.zip` from the official Vosk site into app‑private storage.
+- Verify the SHA‑256 checksum and unzip the model.
+- Show progress in the notification.
+- Start listening hands‑free for “good night” and “good morning” right after the model is installed.
+Voice listening automatically pauses during a full alarm to avoid confusion.
 
 Build and test locally
 ----------------------
@@ -66,7 +72,7 @@ Commands:
 ./gradlew assembleDebug
 ```
 Artifacts:
-- Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
+- Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (also saved at `/opt/cursor/artifacts/g7-night-alarm-debug.apk`)
 
 CI
 --

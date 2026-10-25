@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("jacoco")
 }
 
 android {
@@ -58,6 +59,10 @@ android {
     }
 
     // Default resource processing
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -106,10 +111,45 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Robolectric & test utils
+    testImplementation("org.robolectric:robolectric:4.12.2")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("com.google.truth:truth:1.4.4")
 }
 
 // Allow references to generated code
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// JaCoCo coverage for unit tests
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*_Impl*.*",
+        "**/androidx/**",
+        "**/kotlin/**",
+        "**/databinding/**",
+        "**/schemas/**"
+    )
+    val debugTree = fileTree("$buildDir/tmp/kotlin-classes/debug") { exclude(fileFilter) }
+    val mainSrc = files("$projectDir/src/main/java")
+    classDirectories.setFrom(debugTree)
+    sourceDirectories.setFrom(mainSrc)
+    executionData.setFrom(fileTree("$buildDir") {
+        include("**/*.exec", "**/*.ec")
+    })
 }
 

@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import com.g7nightalarm.app.settings.Units
+import com.g7nightalarm.app.util.UnitsUtil
 
 @Composable
 fun HomeScreen(onOpenSettings: () -> Unit) {
@@ -57,7 +58,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
 
     val title = when {
         latest == null -> "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
-        else -> "${formatUnits(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${latest!!.slopeName ?: ""}"
+        else -> "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${latest!!.slopeName ?: ""}"
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
 
@@ -96,7 +97,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .background(Color(0xFF181818), RoundedCornerShape(16.dp))
                 .padding(12.dp)
         ) {
-            GlucoseChart(history = history, low = convertThreshold(70.0, settings.units), urgentLow = convertThreshold(55.0, settings.units), high = convertThreshold(250.0, settings.units), units = settings.units)
+            GlucoseChart(history = history, low = UnitsUtil.convertThreshold(70.0, settings.units), urgentLow = UnitsUtil.convertThreshold(55.0, settings.units), high = UnitsUtil.convertThreshold(250.0, settings.units), units = settings.units)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(3, 6, 12, 24).forEach { h ->
@@ -149,9 +150,4 @@ private fun GlucoseChart(
 
 private val mgdlFormat = DecimalFormat("###0.#")
 private fun format(v: Double) = mgdlFormat.format(v)
-private val mmolFormat = DecimalFormat("##0.0")
-private fun formatUnits(mgdl: Double, units: Units): String =
-    if (units == Units.MG_DL) format(mgdl) else mmolFormat.format(mgdl / 18.0)
-private fun convertThreshold(mgdl: Double, units: Units): Double =
-    if (units == Units.MG_DL) mgdl else mgdl / 18.0
 

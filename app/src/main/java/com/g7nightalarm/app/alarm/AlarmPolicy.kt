@@ -3,6 +3,16 @@ package com.g7nightalarm.app.alarm
 import com.g7nightalarm.app.mode.AppMode
 
 object AlarmPolicy {
+    fun isAwakeLowWarning(mgdl: Double, warnMin: Double, warnMax: Double): Boolean {
+        return mgdl in warnMin..warnMax
+    }
+
+    fun shouldSuppressBySnooze(nowMs: Long, lastClearMs: Long, windowMinutes: Int): Boolean {
+        if (lastClearMs <= 0L) return false
+        val nextAllowed = lastClearMs + windowMinutes * 60_000L
+        return nowMs < nextAllowed
+    }
+
     fun shouldUseFullAlarm(
         event: AlarmEvent,
         mode: AppMode,

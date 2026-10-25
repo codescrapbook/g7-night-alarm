@@ -30,6 +30,7 @@ class AlarmController(private val context: Context) {
     private var previousAlarmVolume: Int? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
+    private var rampJob: Thread? = null
 
     fun showFullScreenAlarmNotification(): Notification {
         val fullScreenIntent = Intent(context, AlarmActivity::class.java)
@@ -193,6 +194,129 @@ class AlarmController(private val context: Context) {
 
     companion object {
         private const val ALARM_NOTIF_ID = 1001
+    }
+
+    // --- Awake-mode support ---
+    fun previewAwakeChime(volumePercent: Int) {
+        playAwakeChime(volumePercent, durationMs = 2000, loop = false, freqHz = 880.0)
+    }
+
+    fun startAwakeChimeLowWarning(volumePercent: Int) {
+        playAwakeChime(volumePercent, durationMs = 0, loop = true, freqHz = 880.0)
+    }
+
+    fun startAwakeChimeHigh(volumePercent: Int) {
+        playAwakeChime(volumePercent, durationMs = 0, loop = true, freqHz = 1320.0)
+    }
+
+    fun startAwakeChimeSignal(volumePercent: Int) {
+        playAwakeChime(volumePercent, durationMs = 0, loop = true, freqHz = 660.0)
+    }
+
+    fun startAwakeRampLow(volumePercentStart: Int, urgent: Boolean) {
+        val startPct = if (urgent) maxOf(volumePercentStart, 80) else volumePercentStart
+        playAwakeChime(startPct, durationMs = 0, loop = true, freqHz = 880.0)
+        startVolumeRamp(startPct, 100, totalMs = 5 * 60 * 1000) {
+            // at max: switch to full screech
+            stopAwakeChime()
+            startAlarm()
+        }
+    }
+
+    fun stopAwakeChime() {
+        stopAudio()
+        stopVibration()
+        stopRamp()
+        restoreAlarmVolume()
+    }
+
+    private fun playAwakeChime(volumePercent: Int, durationMs: Int, loop: Boolean, freqHz: Double) {
+        forceAlarmVolumePercent(volumePercent)
+        // generate a soft bell-like sine with envelope
+        stopAudio()
+        val sampleRate = 44100
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            4096
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        audioThread = thread(start = true, isDaemon = true, name = "AwakeChime") {
+            val out = ShortArray(bufferSize / 2)
+            val dt = 1.0 / sampleRate
+            var phase = 0.0
+            val omega = 2 * PI * freqHz * dt
+            val chimePeriod = 1000 // ms per chime
+            val decayConst = 3.0 // envelope decay per second
+            var playedMs = 0
+            fun fillBuffer(): Boolean {
+                val samples = out.size
+                for (i in 0 until samples) {
+                    val tSec = ((playedMs.toDouble()) / 1000.0)
+                    val env = kotlin.math.exp(-decayConst * (tSec % 1.0))
+                    phase += omega
+                    val s = sin(phase) * env
+                    out[i] = (s * 0.8 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                    playedMs += (1000.0 / sampleRate).toInt()
+                }
+                at.write(out, 0, samples)
+                return true
+            }
+            if (loop) {
+                while (!Thread.currentThread().isInterrupted) {
+                    if (!fillBuffer()) break
+                }
+            } else {
+                val endTime = System.currentTimeMillis() + durationMs
+                while (!Thread.currentThread().isInterrupted && System.currentTimeMillis() < endTime) {
+                    if (!fillBuffer()) break
+                }
+                // auto-restore volume after preview
+                restoreAlarmVolume()
+            }
+        }
+    }
+
+    private fun forceAlarmVolumePercent(volumePercent: Int) {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        previousAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val set = (max * (volumePercent / 100.0)).toInt().coerceIn(1, max)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+    }
+
+    private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {
+        stopRamp()
+        rampJob = thread(start = true, isDaemon = true, name = "VolumeRamp") {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val start = System.currentTimeMillis()
+            while (true) {
+                val elapsed = System.currentTimeMillis() - start
+                val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
+                val curPercent = startPercent + ((endPercent - startPercent) * frac).toInt()
+                val set = (max * (curPercent / 100.0)).toInt().coerceIn(1, max)
+                am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                if (frac >= 1.0) break
+                try { Thread.sleep(500) } catch (_: InterruptedException) { break }
+            }
+            if (!Thread.currentThread().isInterrupted) onComplete()
+        }
+    }
+
+    private fun stopRamp() {
+        rampJob?.interrupt()
+        rampJob = null
     }
 }
 

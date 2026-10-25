@@ -27,6 +27,7 @@ import com.g7nightalarm.app.ui.MainActivity
 import com.g7nightalarm.app.voice.TtsManager
 import com.g7nightalarm.app.voice.VoiceKeywordListener
 import com.g7nightalarm.app.voice.VoiceModelManager
+import com.g7nightalarm.app.receiver.AlarmActionReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,6 +46,7 @@ import org.json.JSONArray
 import java.text.DecimalFormat
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
+import com.g7nightalarm.app.net.Parsing
 
 class MonitorService : Service() {
 
@@ -58,6 +60,7 @@ class MonitorService : Service() {
     private lateinit var tts: TtsManager
     private var voice: VoiceKeywordListener? = null
     @Volatile private var alarmActive: Boolean = false
+    @Volatile private var awakeAlarmType: String? = null
     private val alarmStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_ALARM_STOPPED) {
@@ -148,23 +151,61 @@ class MonitorService : Service() {
         scope.launch {
             val s = settings.flow.first()
             val mode = if (s.sleepMode) AppMode.SLEEP else AppMode.AWAKE
-            val full = com.g7nightalarm.app.alarm.AlarmPolicy.shouldUseFullAlarm(event, mode, s.safetyNetAlwaysFull)
-            if (full) {
-                alarmActive = true
-                voice?.pause()
-                alarmController.startAlarm()
-            } else if (event !is AlarmEvent.None) {
-                // Normal mode notification / TTS
-                val phrase = when (event) {
-                    is AlarmEvent.Low -> "Glucose low"
-                    is AlarmEvent.High -> "Glucose high"
-                    is AlarmEvent.RapidFall -> "Glucose falling rapidly"
-                    is AlarmEvent.NoData -> "No data received"
-                    else -> ""
+            if (mode == AppMode.SLEEP) {
+                val full = com.g7nightalarm.app.alarm.AlarmPolicy.shouldUseFullAlarm(event, mode, s.safetyNetAlwaysFull)
+                if (full) {
+                    alarmActive = true
+                    voice?.pause()
+                    alarmController.startAlarm()
                 }
-                if (phrase.isNotEmpty()) {
-                    tts.speak(phrase, 60)
+                return@launch
+            }
+            // Awake mode behavior with band and snooze
+            val now = System.currentTimeMillis()
+            val awakeVol = s.awakeVolumePercent
+            // Low warning band check using latest
+            val lwMin = s.awakeLowWarnMin
+            val lwMax = s.awakeLowWarnMax
+            if (latest != null && latest.mgdl in lwMin..lwMax) {
+                if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)) {
+                    return@launch
                 }
+                // Start low warning chime if not already active
+                if (awakeAlarmType != AlarmActionReceiver.TYPE_LOW_WARN) {
+                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
+                    alarmController.startAwakeChimeLowWarning(awakeVol)
+                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
+                }
+                return@launch
+            }
+            when (event) {
+                is AlarmEvent.UrgentLow -> {
+                    if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)) return@launch
+                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low (urgent)", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
+                    alarmController.startAwakeRampLow(awakeVol, urgent = true)
+                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW
+                }
+                is AlarmEvent.Low -> {
+                    if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)) return@launch
+                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
+                    alarmController.startAwakeRampLow(awakeVol, urgent = false)
+                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW
+                }
+                is AlarmEvent.High -> {
+                    if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastHighClearAt, s.awakeHighRearmMin)) return@launch
+                    startAwakeNotification(AlarmActionReceiver.TYPE_HIGH, "High", "Glucose high")
+                    alarmController.startAwakeChimeHigh(awakeVol)
+                    awakeAlarmType = AlarmActionReceiver.TYPE_HIGH
+                }
+                is AlarmEvent.NoData -> {
+                    if (event.minutes >= 30) {
+                        if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastSignalClearAt, s.awakeSignalLostRearmMin)) return@launch
+                        startAwakeNotification(AlarmActionReceiver.TYPE_SIGNAL, "Signal lost", "No data for ${event.minutes} minutes")
+                        alarmController.startAwakeChimeSignal(awakeVol)
+                        awakeAlarmType = AlarmActionReceiver.TYPE_SIGNAL
+                    }
+                }
+                else -> {}
             }
         }
     }
@@ -184,21 +225,16 @@ class MonitorService : Service() {
                         if (resp.isSuccessful) {
                             val body = resp.body?.string()
                             if (!body.isNullOrBlank()) {
-                                val arr = JSONArray(body)
-                                if (arr.length() > 0) {
-                                    val obj = arr.getJSONObject(0)
-                                    val sgv = obj.optDouble("sgv", Double.NaN)
-                                    val date = obj.optLong("date", System.currentTimeMillis())
-                                    if (!sgv.isNaN()) {
-                                        val reading = GlucoseReading(
-                                            timestamp = date,
-                                            mgdl = sgv,
-                                            slopeMgdlPerMin = null,
-                                            slopeName = null,
-                                            source = "xdrip_http"
-                                        )
-                                        db.glucoseDao().insert(reading)
-                                    }
+                                val parsed = Parsing.parseLatestSgv(body)
+                                if (parsed != null) {
+                                    val reading = GlucoseReading(
+                                        timestamp = parsed.date,
+                                        mgdl = parsed.sgv,
+                                        slopeMgdlPerMin = null,
+                                        slopeName = null,
+                                        source = "xdrip_http"
+                                    )
+                                    db.glucoseDao().insert(reading)
                                 }
                             }
                         }
@@ -235,6 +271,28 @@ class MonitorService : Service() {
                 context.startService(intent)
             }
         }
+    }
+
+    private fun startAwakeNotification(type: String, title: String, text: String) {
+        val clearIntent = Intent(AlarmActionReceiver.ACTION_CLEAR).apply {
+            setClass(this@MonitorService, AlarmActionReceiver::class.java)
+            putExtra(AlarmActionReceiver.EXTRA_TYPE, type)
+        }
+        val clearPi = PendingIntent.getBroadcast(
+            this, 200 + type.hashCode(),
+            clearIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(
+            MONITOR_NOTIF_ID + 2,
+            NotificationCompat.Builder(this, G7NightAlarmApp.Channels.MONITOR_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setOngoing(true)
+                .addAction(0, getString(R.string.action_dismiss), clearPi)
+                .build()
+        )
     }
 
     private fun observeVoiceToggle() {

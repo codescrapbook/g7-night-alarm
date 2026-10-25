@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  android-emulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.android-emulator
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    volumes:
+      - ./:/workspace
+    environment:
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+    privileged: true

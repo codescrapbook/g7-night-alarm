@@ -78,6 +78,15 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.AlarmActionReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.CLEAR_ALARM" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>
 
