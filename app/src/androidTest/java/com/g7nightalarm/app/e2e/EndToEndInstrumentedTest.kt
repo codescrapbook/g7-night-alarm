@@ -21,6 +21,8 @@ import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.ui.MainActivity
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
+import android.content.ComponentName
+import com.g7nightalarm.app.receiver.SleepScheduleReceiver
 import org.junit.*
 import org.junit.runner.RunWith
 import androidx.test.ext.junit.rules.activityScenarioRule
@@ -152,10 +154,10 @@ class EndToEndInstrumentedTest {
         // Ensure we start from Awake so the receiver actually switches to Sleep and speaks
         runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
         // Send broadcast explicitly to our package to avoid implicit broadcast limitations
-        context.sendBroadcast(
-            Intent(com.g7nightalarm.app.receiver.SleepScheduleReceiver.ACTION_AUTO_SLEEP)
-                .setPackage(context.packageName)
-        )
+        val intent = Intent(SleepScheduleReceiver.ACTION_AUTO_SLEEP).apply {
+            component = ComponentName(context, SleepScheduleReceiver::class.java)
+        }
+        context.sendBroadcast(intent)
         // Bring app to foreground and verify UI reflects Sleep mode within 20s
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         Assert.assertTrue(
