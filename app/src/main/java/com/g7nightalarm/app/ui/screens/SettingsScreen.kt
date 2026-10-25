@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -59,34 +60,41 @@ fun SettingsScreen(onBack: () -> Unit) {
     var musicSignalUri by remember { mutableStateOf(state.musicSignalUri ?: "") }
     val scope = remember { CoroutineScope(Dispatchers.IO) }
     val alarm = remember { AlarmController(context) }
-    // SAF pickers
-    val pickAudioLow = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Throwable) {}
-            musicLowUri = uri.toString()
-            scope.launch { repo.update { it[SettingsKeys.musicLowUri] = musicLowUri } }
+    // SAF pickers (only if an Activity is present; Robolectric compose tests may lack one)
+    val activity = context as? Activity
+    val pickAudioLowLauncher = if (activity != null) {
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Throwable) {}
+                musicLowUri = uri.toString()
+                scope.launch { repo.update { it[SettingsKeys.musicLowUri] = musicLowUri } }
+            }
         }
-    }
-    val pickAudioHigh = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Throwable) {}
-            musicHighUri = uri.toString()
-            scope.launch { repo.update { it[SettingsKeys.musicHighUri] = musicHighUri } }
+    } else null
+    val pickAudioHighLauncher = if (activity != null) {
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Throwable) {}
+                musicHighUri = uri.toString()
+                scope.launch { repo.update { it[SettingsKeys.musicHighUri] = musicHighUri } }
+            }
         }
-    }
-    val pickAudioSignal = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Throwable) {}
-            musicSignalUri = uri.toString()
-            scope.launch { repo.update { it[SettingsKeys.musicSignalUri] = musicSignalUri } }
+    } else null
+    val pickAudioSignalLauncher = if (activity != null) {
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Throwable) {}
+                musicSignalUri = uri.toString()
+                scope.launch { repo.update { it[SettingsKeys.musicSignalUri] = musicSignalUri } }
+            }
         }
-    }
+    } else null
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -135,7 +143,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
                 Text(desc)
             }
-            Button(onClick = { pickAudioLow.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null) { Text("Pick") }
             Button(onClick = {
                 scope.launch { repo.update { it.remove(SettingsKeys.musicLowUri) } }
                 musicLowUri = ""
@@ -155,7 +163,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
                 Text(desc)
             }
-            Button(onClick = { pickAudioHigh.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null) { Text("Pick") }
             Button(onClick = {
                 scope.launch { repo.update { it.remove(SettingsKeys.musicHighUri) } }
                 musicHighUri = ""
@@ -175,7 +183,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
                 Text(desc)
             }
-            Button(onClick = { pickAudioSignal.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null) { Text("Pick") }
             Button(onClick = {
                 scope.launch { repo.update { it.remove(SettingsKeys.musicSignalUri) } }
                 musicSignalUri = ""
