@@ -276,13 +276,16 @@ class EndToEndInstrumentedTest {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        // Start ramp deterministically via debug receiver (service path for below-70 is covered in snooze tests)
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_RAMP_LOW).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 40)
+                putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
+            }
+        )
         val baseNow = System.currentTimeMillis()
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow
-        // Step 1: low-band reading (no ramp yet)
-        sendBgEstimate(75.0, ts = baseNow)
-        Thread.sleep(500)
-        // Step 2: sub-70 low reading triggers ramp from awake volume
-        sendBgEstimate(65.0, ts = baseNow + 5_000)
         // Wait until volume reaches at least the awake starting volume
         val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
         var startVol = -1
@@ -310,6 +313,9 @@ class EndToEndInstrumentedTest {
             Thread.sleep(250)
         }
         Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes.", atMax)
+        // Verify urgent full-screen alarm is shown after ramp completes
+        val showUrgent = device.wait(Until.hasObject(By.text("URGENT ALARM")), 8000)
+        Assert.assertTrue("Expected urgent full-screen after ramp completion.", showUrgent)
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
