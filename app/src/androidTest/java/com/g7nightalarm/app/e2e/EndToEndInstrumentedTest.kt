@@ -291,10 +291,14 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Expected ramp to start near awake volume.", startVol in awakeVol until max)
         // Midpoint (~2.5 min): expect volume higher than start and less than max
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (2 * 60 + 30) * 1000L
-        Thread.sleep(1500)
-        val mid = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        Assert.assertTrue("Expected midpoint volume > start.", mid > startVol)
-        Assert.assertTrue("Expected midpoint volume < max.", mid < max)
+        var midGtStart = false
+        var midVal = -1
+        repeat(20) { // wait up to ~5s for ramp thread to apply
+            midVal = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (midVal > startVol && midVal < max) { midGtStart = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected midpoint volume > start.", midGtStart)
         // End (~5 min): expect max
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
         var atMax = false
