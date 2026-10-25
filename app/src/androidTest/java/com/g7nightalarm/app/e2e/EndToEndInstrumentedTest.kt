@@ -141,5 +141,14 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue(com.g7nightalarm.app.voice.TtsManager.lastMessage?.contains("Turning on for sleep.") == true)
         screenshot("schedule_announcement.png")
     }
+
+    @Test
+    fun settings_music_mode_screenshot() {
+        // Open Settings from Home
+        device.findObject(By.text("Settings")).click()
+        device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
+        // Take screenshot of settings including Music Mode section
+        screenshot("settings_music.png")
+    }
 }
 

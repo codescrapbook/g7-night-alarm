@@ -66,6 +66,10 @@ class RoborazziScreenshotsTest {
         val repo = SettingsRepository(context)
         repo.update { p -> p[SettingsKeys.sleepMode] = sleep }
     }
+    private fun setMusicMode(enabled: Boolean) = runBlocking {
+        val repo = SettingsRepository(context)
+        repo.update { p -> p[SettingsKeys.musicModeEnabled] = enabled }
+    }
 
     @Test
     fun home_awake_mgdl_24h_land() = runBlocking {
@@ -126,6 +130,20 @@ class RoborazziScreenshotsTest {
             }
         }
         savePng("settings_land.png")
+    }
+
+    @Test
+    fun settings_music_land() {
+        setMusicMode(true)
+        outDir.mkdirs()
+        composeRule.setContent {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    SettingsScreen(onBack = {})
+                }
+            }
+        }
+        savePng("settings_music_land.png")
     }
 
     private fun savePng(name: String) {

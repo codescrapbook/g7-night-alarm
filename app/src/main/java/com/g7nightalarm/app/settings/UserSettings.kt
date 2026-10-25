@@ -42,8 +42,12 @@ data class SettingsState(
     val awakeLowWarnRearmMin: Int = 30,
     val awakeLowBelow70RearmMin: Int = 15,
     val awakeHighRearmMin: Int = 60,
-    val awakeSignalLostRearmMin: Int = 30
-    ,
+    val awakeSignalLostRearmMin: Int = 30,
+    // Music Mode (awake only)
+    val musicModeEnabled: Boolean = false,
+    val musicLowUri: String? = null,
+    val musicHighUri: String? = null,
+    val musicSignalUri: String? = null,
     val lastLowWarnClearAt: Long = 0L,
     val lastLowClearAt: Long = 0L,
     val lastHighClearAt: Long = 0L,
@@ -76,6 +80,11 @@ object SettingsKeys {
     val lastLowClearAt = longPreferencesKey("last_low_clear_at")
     val lastHighClearAt = longPreferencesKey("last_high_clear_at")
     val lastSignalClearAt = longPreferencesKey("last_signal_clear_at")
+    // Music Mode
+    val musicModeEnabled = booleanPreferencesKey("music_mode_enabled")
+    val musicLowUri = stringPreferencesKey("music_low_uri")
+    val musicHighUri = stringPreferencesKey("music_high_uri")
+    val musicSignalUri = stringPreferencesKey("music_signal_uri")
 }
 
 class SettingsRepository(private val context: Context) {
@@ -106,6 +115,10 @@ class SettingsRepository(private val context: Context) {
             awakeLowBelow70RearmMin = prefs[SettingsKeys.awakeLowBelow70RearmMin] ?: 15,
             awakeHighRearmMin = prefs[SettingsKeys.awakeHighRearmMin] ?: 60,
             awakeSignalLostRearmMin = prefs[SettingsKeys.awakeSignalLostRearmMin] ?: 30,
+            musicModeEnabled = prefs[SettingsKeys.musicModeEnabled] ?: false,
+            musicLowUri = prefs[SettingsKeys.musicLowUri],
+            musicHighUri = prefs[SettingsKeys.musicHighUri],
+            musicSignalUri = prefs[SettingsKeys.musicSignalUri],
             lastLowWarnClearAt = prefs[SettingsKeys.lastLowWarnClearAt] ?: 0L,
             lastLowClearAt = prefs[SettingsKeys.lastLowClearAt] ?: 0L,
             lastHighClearAt = prefs[SettingsKeys.lastHighClearAt] ?: 0L,

@@ -33,6 +33,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -51,8 +53,40 @@ fun SettingsScreen(onBack: () -> Unit) {
     var autoHour by remember { mutableStateOf(state.autoSleepHour.toString()) }
     var autoMinute by remember { mutableStateOf(state.autoSleepMinute.toString()) }
     var awakeVol by remember { mutableStateOf(state.awakeVolumePercent.toString()) }
+    var musicMode by remember { mutableStateOf(state.musicModeEnabled) }
+    var musicLowUri by remember { mutableStateOf(state.musicLowUri ?: "") }
+    var musicHighUri by remember { mutableStateOf(state.musicHighUri ?: "") }
+    var musicSignalUri by remember { mutableStateOf(state.musicSignalUri ?: "") }
     val scope = remember { CoroutineScope(Dispatchers.IO) }
     val alarm = remember { AlarmController(context) }
+    // SAF pickers
+    val pickAudioLow = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Throwable) {}
+            musicLowUri = uri.toString()
+            scope.launch { repo.update { it[SettingsKeys.musicLowUri] = musicLowUri } }
+        }
+    }
+    val pickAudioHigh = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Throwable) {}
+            musicHighUri = uri.toString()
+            scope.launch { repo.update { it[SettingsKeys.musicHighUri] = musicHighUri } }
+        }
+    }
+    val pickAudioSignal = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Throwable) {}
+            musicSignalUri = uri.toString()
+            scope.launch { repo.update { it[SettingsKeys.musicSignalUri] = musicSignalUri } }
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -84,6 +118,75 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Text("Safety-net urgent/no-data 30m = full alarm")
                 Switch(checked = safetyNetFull, onCheckedChange = { safetyNetFull = it })
             }
+        }
+        // Music Mode section
+        Text("Music Mode (awake only)", style = MaterialTheme.typography.titleLarge)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Enable Music Mode")
+            Switch(checked = musicMode, onCheckedChange = {
+                musicMode = it
+                scope.launch { repo.update { p -> p[SettingsKeys.musicModeEnabled] = it } }
+            })
+        }
+        // Low song picker (default melody if none)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Low song")
+                val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
+                Text(desc)
+            }
+            Button(onClick = { pickAudioLow.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = {
+                scope.launch { repo.update { it.remove(SettingsKeys.musicLowUri) } }
+                musicLowUri = ""
+            }) { Text("Clear") }
+            Button(onClick = {
+                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                scope.launch {
+                    if (musicLowUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicLowUri))
+                    else alarm.startAwakeMusicLowDefault(vol)
+                }
+            }) { Text("Preview") }
+        }
+        // High song picker
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("High song")
+                val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
+                Text(desc)
+            }
+            Button(onClick = { pickAudioHigh.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = {
+                scope.launch { repo.update { it.remove(SettingsKeys.musicHighUri) } }
+                musicHighUri = ""
+            }) { Text("Clear") }
+            Button(onClick = {
+                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                scope.launch {
+                    if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
+                    else alarm.startAwakeChimeHigh(vol)
+                }
+            }) { Text("Preview") }
+        }
+        // Signal lost song picker
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text("Signal lost song")
+                val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
+                Text(desc)
+            }
+            Button(onClick = { pickAudioSignal.launch(arrayOf("audio/*")) }) { Text("Pick") }
+            Button(onClick = {
+                scope.launch { repo.update { it.remove(SettingsKeys.musicSignalUri) } }
+                musicSignalUri = ""
+            }) { Text("Clear") }
+            Button(onClick = {
+                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                scope.launch {
+                    if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
+                    else alarm.startAwakeChimeSignal(vol)
+                }
+            }) { Text("Preview") }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(awakeVol, onValueChange = { awakeVol = it.filter { ch -> ch.isDigit() }.take(3) }, label = { Text("Awake volume % (alarm stream)") })
@@ -127,6 +230,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                         p[SettingsKeys.autoSleepHour] = autoHour.toIntOrNull()?.coerceIn(0, 23) ?: 23
                         p[SettingsKeys.autoSleepMinute] = autoMinute.toIntOrNull()?.coerceIn(0, 59) ?: 0
                         p[SettingsKeys.awakeVolumePercent] = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                        p[SettingsKeys.musicModeEnabled] = musicMode
+                        if (musicLowUri.isNotBlank()) p[SettingsKeys.musicLowUri] = musicLowUri else p.remove(SettingsKeys.musicLowUri)
+                        if (musicHighUri.isNotBlank()) p[SettingsKeys.musicHighUri] = musicHighUri else p.remove(SettingsKeys.musicHighUri)
+                        if (musicSignalUri.isNotBlank()) p[SettingsKeys.musicSignalUri] = musicSignalUri else p.remove(SettingsKeys.musicSignalUri)
                     }
                 }
             }) { Text("Save") }

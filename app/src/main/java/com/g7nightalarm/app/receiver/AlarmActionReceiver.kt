@@ -14,7 +14,9 @@ class AlarmActionReceiver : BroadcastReceiver() {
         if (intent.action == ACTION_CLEAR) {
             val type = intent.getStringExtra(EXTRA_TYPE) ?: ""
             // stop any running audio
-            AlarmController(context).stopAwakeChime()
+            val controller = AlarmController(context)
+            controller.stopAwakeChime()
+            controller.stopAwakeMusic()
             GlobalScope.launch {
                 val repo = SettingsRepository(context)
                 repo.update { p ->

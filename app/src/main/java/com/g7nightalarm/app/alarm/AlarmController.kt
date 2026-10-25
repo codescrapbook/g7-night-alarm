@@ -9,11 +9,13 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import com.g7nightalarm.app.G7NightAlarmApp
 import com.g7nightalarm.app.R
@@ -31,6 +33,8 @@ class AlarmController(private val context: Context) {
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
     private var rampJob: Thread? = null
+    private var mediaPlayer: MediaPlayer? = null
+    @Volatile var isMusicPlaying: Boolean = false
     /**
      * Time source used for testing the awake-mode volume ramp. Defaults to System.currentTimeMillis.
      * Tests may override this to simulate passage of time deterministically.
@@ -197,6 +201,15 @@ class AlarmController(private val context: Context) {
         audioTrack = null
     }
 
+    private fun stopMedia() {
+        mediaPlayer?.let {
+            try { it.stop() } catch (_: Throwable) {}
+            try { it.release() } catch (_: Throwable) {}
+        }
+        mediaPlayer = null
+        isMusicPlaying = false
+    }
+
     companion object {
         private const val ALARM_NOTIF_ID = 1001
     }
@@ -229,6 +242,131 @@ class AlarmController(private val context: Context) {
     }
 
     fun stopAwakeChime() {
+        stopAudio()
+        stopVibration()
+        stopRamp()
+        restoreAlarmVolume()
+    }
+
+    // --- Music Mode (awake only) ---
+    fun startAwakeMusicFromUri(volumePercent: Int, uri: Uri) {
+        stopAwakeChime()
+        stopMedia()
+        forceAlarmVolumePercent(volumePercent)
+        val mp = MediaPlayer()
+        mediaPlayer = mp
+        try {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            mp.setAudioAttributes(attrs)
+            mp.setDataSource(context, uri)
+            mp.isLooping = true
+            mp.setOnPreparedListener {
+                it.start()
+                isMusicPlaying = true
+            }
+            mp.setOnCompletionListener { isMusicPlaying = false }
+            mp.prepareAsync()
+        } catch (_: Throwable) {
+            stopMedia()
+        }
+    }
+
+    fun startAwakeMusicLowDefault(volumePercent: Int) {
+        // Generate simple sine melody for "Swing Low, Sweet Chariot"
+        stopAwakeChime()
+        stopMedia()
+        forceAlarmVolumePercent(volumePercent)
+        val sampleRate = 44100
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            4096
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "SwingLowMelody") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                val dt = 1.0 / sampleRate
+                var phase = 0.0
+                // Define notes (frequency Hz, duration ms); key of G major (approx)
+                data class Note(val freq: Double, val ms: Int)
+                val quarter = 500
+                val half = 1000
+                val E4 = 329.63; val G4 = 392.00; val A4 = 440.00; val B4 = 493.88; val D5 = 587.33; val C5 = 523.25
+                val notes = listOf(
+                    // "Swing low, sweet cha-ri-ot"
+                    Note(G4, half), Note(E4, quarter), Note(G4, quarter),
+                    Note(B4, half), Note(A4, half),
+                    // "Comin' for to carry me home"
+                    Note(G4, half), Note(E4, quarter), Note(G4, quarter),
+                    Note(D5, half), Note(B4, half),
+                    // small refrain
+                    Note(A4, half), Note(G4, half),
+                    Note(E4, half), Note(G4, half),
+                )
+                var idx = 0
+                var remainingSamples = 0
+                var omega = 2 * Math.PI * notes.first().freq * dt
+                while (!Thread.currentThread().isInterrupted) {
+                    if (remainingSamples <= 0) {
+                        val n = notes[idx]
+                        omega = 2 * Math.PI * n.freq * dt
+                        remainingSamples = (n.ms / 1000.0 * sampleRate).toInt()
+                        idx = (idx + 1) % notes.size
+                    }
+                    // fill buffer or until note end
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        phase += omega
+                        val env = 0.6 // fixed amplitude
+                        val s = Math.sin(phase) * env
+                        out[i] = (s * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                        remainingSamples--
+                        if (remainingSamples <= 0) {
+                            // next note on next sample
+                            break
+                        }
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
+    fun startAwakeMusicRampLow(volumePercentStart: Int, urgent: Boolean, contentUri: Uri?) {
+        // Start music (URI if provided, else default melody), then ramp STREAM_ALARM volume to max over 5 min
+        val startPct = if (urgent) maxOf(volumePercentStart, 80) else volumePercentStart
+        if (contentUri != null) {
+            startAwakeMusicFromUri(startPct, contentUri)
+        } else {
+            startAwakeMusicLowDefault(startPct)
+        }
+        startVolumeRamp(startPct, 100, totalMs = 5 * 60 * 1000) {
+            // at max: switch to full screech
+            stopAwakeMusic()
+            startAlarm()
+        }
+    }
+
+    fun stopAwakeMusic() {
+        stopMedia()
         stopAudio()
         stopVibration()
         stopRamp()
