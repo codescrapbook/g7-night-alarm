@@ -130,7 +130,7 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           target: google_apis
-          device: Nexus 9
+          profile: Nexus 9
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot
           script: |
