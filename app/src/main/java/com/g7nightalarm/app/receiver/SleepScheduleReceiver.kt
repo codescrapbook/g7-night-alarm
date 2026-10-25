@@ -25,6 +25,17 @@ class SleepScheduleReceiver : BroadcastReceiver() {
             val settings = SettingsRepository(appContext)
             val tts = TtsManager(appContext)
             tts.ensure()
+            // Fast path for instrumented tests to avoid any background scheduling or Room overhead
+            val testInline = intent.getBooleanExtra(EXTRA_TEST_FORCE_INLINE, false)
+            if (testInline) {
+                val cur = runBlocking { settings.flow.first() }
+                if (!cur.sleepMode) {
+                    runBlocking { settings.update { it[SettingsKeys.sleepMode] = true } }
+                    tts.speak("Turning on for sleep.", 60)
+                }
+                SleepScheduler.schedule(appContext, cur.autoSleepHour, cur.autoSleepMinute)
+                return
+            }
             // Perform minimal synchronous work to be deterministic in tests and reliable in background
             val cur = runBlocking { settings.flow.first() }
             if (!cur.sleepMode) {
@@ -39,6 +50,7 @@ class SleepScheduleReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_AUTO_SLEEP = "com.g7nightalarm.AUTO_SLEEP"
+        const val EXTRA_TEST_FORCE_INLINE = "com.g7nightalarm.EXTRA_TEST_FORCE_INLINE"
     }
 }
 

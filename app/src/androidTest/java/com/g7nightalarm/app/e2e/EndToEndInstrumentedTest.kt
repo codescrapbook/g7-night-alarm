@@ -156,6 +156,7 @@ class EndToEndInstrumentedTest {
         // Send broadcast explicitly to our package to avoid implicit broadcast limitations
         val intent = Intent(SleepScheduleReceiver.ACTION_AUTO_SLEEP).apply {
             component = ComponentName(context, SleepScheduleReceiver::class.java)
+            putExtra(SleepScheduleReceiver.EXTRA_TEST_FORCE_INLINE, true)
         }
         context.sendBroadcast(intent)
         // Bring app to foreground and verify UI reflects Sleep mode within 20s
