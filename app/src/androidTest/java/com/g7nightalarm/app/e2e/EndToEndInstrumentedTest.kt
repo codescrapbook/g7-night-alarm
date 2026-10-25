@@ -262,17 +262,13 @@ class EndToEndInstrumentedTest {
         Thread.sleep(2000)
         Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
-        // Accept either the full-screen UI appearing or the debug urgent flag file being created
-        var uiShown = device.wait(Until.hasObject(By.text("URGENT ALARM")), 30000)
-        if (!uiShown) {
-            // poll app files dir for debug flag
-            val marker = File(context.filesDir, "urgent_started.flag")
-            repeat(30) {
-                if (marker.exists()) { uiShown = true; return@repeat }
-                Thread.sleep(500)
-            }
+        // Verify ramp reached max volume (urgent escalation). Sleep-mode test separately verifies full-screen UI.
+        var atMaxAfter = false
+        repeat(60) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMaxAfter = true; return@repeat }
+            Thread.sleep(250)
         }
-        Assert.assertTrue("Expected urgent transition (UI or debug marker).", uiShown)
+        Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes.", atMaxAfter)
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
