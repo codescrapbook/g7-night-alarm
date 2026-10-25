@@ -72,7 +72,11 @@ class EndToEndInstrumentedTest {
         device.waitForIdle()
         val okExt = try { device.takeScreenshot(out) } catch (_: Throwable) { false }
         if (!okExt) {
-            try { device.executeShellCommand("screencap -p ${out.absolutePath}") } catch (_: Throwable) {}
+            try {
+                // Fallback to public Pictures directory to avoid Android/data restrictions for shell user
+                device.executeShellCommand("mkdir -p /sdcard/Pictures/g7-night-alarm")
+                device.executeShellCommand("screencap -p /sdcard/Pictures/g7-night-alarm/${name}")
+            } catch (_: Throwable) {}
         }
         try {
             // Also save to internal app storage to allow adb run-as retrieval on Android 13/14
