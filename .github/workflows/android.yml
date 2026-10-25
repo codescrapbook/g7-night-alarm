@@ -160,6 +160,23 @@ jobs:
             adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true
             # Public Pictures fallback (written by tests when screencap is used)
             adb pull /sdcard/Pictures/g7-night-alarm artifacts/screenshots/api${{ matrix.api-level }} || true
+            # Curated screenshots via debug ScreenshotActivity
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mgdl || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mgdl.png || true
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_sleep_mgdl || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_sleep_mgdl.png || true
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mmol_port || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mmol_port.png || true
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen settings || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/settings.png || true
+            # Urgent alarm full-screen
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.alarm.AlarmActivity || true
+            sleep 2
+            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/alarm_urgent.png || true
       - name: Upload connected test results
         if: always()
         uses: actions/upload-artifact@v4

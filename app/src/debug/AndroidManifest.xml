@@ -46,6 +46,10 @@
                 <action android:name="com.g7nightalarm.TEST_VOICE" />
             </intent-filter>
         </receiver>
+        <activity
+            android:name="com.g7nightalarm.app.debug.ScreenshotActivity"
+            android:exported="true"
+            android:label="ScreenshotActivity" />
     </application>
 </manifest>
 
