@@ -30,6 +30,9 @@ class AlarmController(private val context: Context) {
     private var audioTrack: AudioTrack? = null
     private var audioThread: Thread? = null
     private var previousAlarmVolume: Int? = null
+    companion object {
+        @Volatile private var globalPreviousAlarmVolume: Int? = null
+    }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
     private var rampJob: Thread? = null
@@ -127,16 +130,20 @@ class AlarmController(private val context: Context) {
     private fun forceAlarmVolumeMax() {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        previousAlarmVolume = cur
+        if (globalPreviousAlarmVolume == null) globalPreviousAlarmVolume = cur
         am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
     }
 
     private fun restoreAlarmVolume() {
-        previousAlarmVolume?.let {
+        val target = globalPreviousAlarmVolume ?: previousAlarmVolume
+        target?.let {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             am.setStreamVolume(AudioManager.STREAM_ALARM, it, 0)
         }
         previousAlarmVolume = null
+        globalPreviousAlarmVolume = null
     }
 
     private fun startAudio() {
@@ -698,7 +705,9 @@ class AlarmController(private val context: Context) {
     private fun forceAlarmVolumePercent(volumePercent: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        previousAlarmVolume = cur
+        if (globalPreviousAlarmVolume == null) globalPreviousAlarmVolume = cur
         val set = (max * (volumePercent / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
     }

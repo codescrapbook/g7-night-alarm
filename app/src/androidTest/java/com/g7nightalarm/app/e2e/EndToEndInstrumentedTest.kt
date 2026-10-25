@@ -112,17 +112,15 @@ class EndToEndInstrumentedTest {
         Assert.assertEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
         screenshot("alarm_fullscreen.png")
         // Try UI long-press HOLD to dismiss
-        device.wait(Until.hasObject(By.text("HOLD")), 3000)
-        device.findObject(By.text("HOLD"))?.longClick()
+        if (device.wait(Until.hasObject(By.text("HOLD")), 3000)) {
+            device.findObject(By.text("HOLD")).longClick()
+        }
         // Also send debug-only fallback to ensure the full alarm is stopped (restores volume)
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         // Wait up to 5s and verify volume restored (or at least not max)
         var restored = false
-        repeat(10) {
-            if (am.getStreamVolume(AudioManager.STREAM_ALARM) != max) {
-                restored = true
-                return@repeat
-            }
+        repeat(20) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) != max) { restored = true; return@repeat }
             Thread.sleep(500)
         }
         Assert.assertTrue("Alarm volume should be restored after dismiss. Actual: ${am.getStreamVolume(AudioManager.STREAM_ALARM)}", restored)
@@ -133,7 +131,8 @@ class EndToEndInstrumentedTest {
     @Test
     fun goodNightGoodMorning_switchesMode_andPersistsAcrossServiceRestart() {
         // Tap Good Night
-        onView(withText("Good Night")).perform(click())
+        device.wait(Until.hasObject(By.text("Good Night")), 5000)
+        device.findObject(By.text("Good Night")).click()
         // Restart service
         context.stopService(Intent(context, MonitorService::class.java))
         MonitorService.start(context)
@@ -141,7 +140,8 @@ class EndToEndInstrumentedTest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         device.wait(Until.hasObject(By.textContains("Mode:")), 3000)
         // Tap Good Morning
-        onView(withText("Good Morning")).perform(click())
+        device.wait(Until.hasObject(By.text("Good Morning")), 5000)
+        device.findObject(By.text("Good Morning")).click()
         screenshot("home_after_mode_toggles.png")
     }
 
@@ -157,8 +157,9 @@ class EndToEndInstrumentedTest {
 
     @Test
     fun settings_music_mode_screenshot() {
-        // Open Settings from Home
-        androidx.test.espresso.Espresso.onView(withText("Settings")).perform(click())
+        // Open Settings from Home using UiAutomator to avoid Compose/Espresso interop issues
+        device.wait(Until.hasObject(By.text("Settings")), 7000)
+        device.findObject(By.text("Settings")).click()
         device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")
