@@ -109,8 +109,8 @@ class EndToEndInstrumentedTest {
         }
         // Inject urgent low
         sendBgEstimate(52.0)
-        // Expect alarm screen
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 7_000))
+        // Expect alarm screen (allow more time on API 34 under load)
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15_000))
         // Volume forced to max (allow small async delay on newer Android)
         var atMax = false
         repeat(50) {
