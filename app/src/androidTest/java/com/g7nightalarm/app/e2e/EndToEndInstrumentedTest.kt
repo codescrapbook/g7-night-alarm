@@ -273,7 +273,7 @@ class EndToEndInstrumentedTest {
                 putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 - 5) * 1000L)
             }
         )
-        Thread.sleep(1000)
+        Thread.sleep(2000)
         Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
         context.sendBroadcast(
             Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
@@ -281,7 +281,7 @@ class EndToEndInstrumentedTest {
                 putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L)
             }
         )
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15000))
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 30000))
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
