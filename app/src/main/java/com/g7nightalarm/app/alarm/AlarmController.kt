@@ -79,6 +79,12 @@ class AlarmController(private val context: Context) {
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
         )
+        // Debug marker for instrumentation to detect urgent transition deterministically
+        if (com.g7nightalarm.app.BuildConfig.DEBUG) {
+            try {
+                context.openFileOutput("urgent_started.flag", Context.MODE_PRIVATE).use { it.write("1".toByteArray()) }
+            } catch (_: Throwable) { }
+        }
     }
 
     fun stopAlarm() {

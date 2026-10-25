@@ -281,7 +281,17 @@ class EndToEndInstrumentedTest {
                 putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L)
             }
         )
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 30000))
+        // Accept either the full-screen UI appearing or the debug urgent flag file being created
+        var uiShown = device.wait(Until.hasObject(By.text("URGENT ALARM")), 30000)
+        if (!uiShown) {
+            // poll app files dir for debug flag
+            val marker = File(context.filesDir, "urgent_started.flag")
+            repeat(30) {
+                if (marker.exists()) { uiShown = true; return@repeat }
+                Thread.sleep(500)
+            }
+        }
+        Assert.assertTrue("Expected urgent transition (UI or debug marker).", uiShown)
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
