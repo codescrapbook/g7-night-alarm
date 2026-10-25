@@ -148,6 +148,8 @@ class EndToEndInstrumentedTest {
     @Test
     fun scheduleReceiver_announcesTurningOnForSleep() {
         // Trigger the receiver directly
+        // Ensure we start from Awake so the receiver actually switches to Sleep and speaks
+        runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.SleepScheduleReceiver.ACTION_AUTO_SLEEP))
         // Poll up to 10s for TTS
         var ok = false
