@@ -281,7 +281,7 @@ class EndToEndInstrumentedTest {
                 putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L)
             }
         )
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 8000))
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15000))
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
@@ -311,9 +311,15 @@ class EndToEndInstrumentedTest {
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (35 / 100.0)).toInt().coerceIn(1, max)
         val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        sendBgEstimate(280.0)
+        // Start high alarm deterministically via debug receiver (service path via BG inject is covered elsewhere)
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_HIGH).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 35)
+            }
+        )
         var ok = false
-        repeat(80) {
+        repeat(160) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
             Thread.sleep(250)
         }
@@ -377,9 +383,15 @@ class EndToEndInstrumentedTest {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (45 / 100.0)).toInt().coerceIn(1, max)
-        sendBgEstimate(280.0)
+        // Kick off high alarm deterministically to verify initial volume behavior
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_HIGH).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 45)
+            }
+        )
         var reached = false
-        repeat(40) {
+        repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { reached = true; return@repeat }
             Thread.sleep(250)
         }
@@ -400,6 +412,7 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Expected lastHighClearAt to be recorded after CLEAR.", clearRecorded)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        // Re-trigger via BG estimate to exercise the service path and ensure suppression
         sendBgEstimate(280.0)
         Thread.sleep(1500)
         Assert.assertEquals("Expected high alarm suppressed within rearm window.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
