@@ -5,12 +5,7 @@
         <activity
             android:name="com.g7nightalarm.app.debug.ScreenshotActivity"
             android:exported="true"
-            android:label="ScreenshotActivity">
-            <intent-filter>
-                <action android:name="com.g7nightalarm.app.action.SCREENSHOT" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+            android:label="ScreenshotActivity" />
     </application>
 </manifest>
 
