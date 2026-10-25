@@ -177,8 +177,10 @@ class EndToEndInstrumentedTest {
     @Test
     fun settings_music_mode_screenshot() {
         // Open Settings from Home using UiAutomator to avoid Compose/Espresso interop issues
-        device.wait(Until.hasObject(By.text("Settings")), 7000)
-        device.findObject(By.text("Settings")).click()
+        // Ensure app is foreground
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        device.wait(Until.hasObject(By.textContains("Settings")), 7000)
+        device.findObject(By.textContains("Settings")).click()
         device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")
