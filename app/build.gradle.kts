@@ -62,6 +62,10 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = true
+        animationsDisabled = true
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        // Clear app data between tests when using orchestrator
+        emulatorSnapshots.enableForTestFailures = false
     }
 }
 
@@ -121,6 +125,9 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi:$roborazziVersion")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:$roborazziVersion")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:$roborazziVersion")
+    // Instrumented testing
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
 }
 
 // Allow references to generated code

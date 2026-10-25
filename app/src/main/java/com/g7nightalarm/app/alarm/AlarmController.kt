@@ -31,6 +31,11 @@ class AlarmController(private val context: Context) {
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
     private var rampJob: Thread? = null
+    /**
+     * Time source used for testing the awake-mode volume ramp. Defaults to System.currentTimeMillis.
+     * Tests may override this to simulate passage of time deterministically.
+     */
+    var nowProvider: () -> Long = { System.currentTimeMillis() }
 
     fun showFullScreenAlarmNotification(): Notification {
         val fullScreenIntent = Intent(context, AlarmActivity::class.java)
@@ -277,8 +282,8 @@ class AlarmController(private val context: Context) {
                     if (!fillBuffer()) break
                 }
             } else {
-                val endTime = System.currentTimeMillis() + durationMs
-                while (!Thread.currentThread().isInterrupted && System.currentTimeMillis() < endTime) {
+                val endTime = nowProvider() + durationMs
+                while (!Thread.currentThread().isInterrupted && nowProvider() < endTime) {
                     if (!fillBuffer()) break
                 }
                 // auto-restore volume after preview
@@ -300,9 +305,9 @@ class AlarmController(private val context: Context) {
         rampJob = thread(start = true, isDaemon = true, name = "VolumeRamp") {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val start = System.currentTimeMillis()
+            val start = nowProvider()
             while (true) {
-                val elapsed = System.currentTimeMillis() - start
+                val elapsed = nowProvider() - start
                 val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
                 val curPercent = startPercent + ((endPercent - startPercent) * frac).toInt()
                 val set = (max * (curPercent / 100.0)).toInt().coerceIn(1, max)
