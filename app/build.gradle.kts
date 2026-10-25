@@ -120,6 +120,7 @@ dependencies {
     // Robolectric & test utils
     testImplementation("org.robolectric:robolectric:4.12.2")
     testImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
     testImplementation("com.google.truth:truth:1.4.4")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     // Roborazzi for JVM screenshots
@@ -163,8 +164,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     val mainSrc = files("$projectDir/src/main/java")
     classDirectories.setFrom(debugTree)
     sourceDirectories.setFrom(mainSrc)
-    executionData.setFrom(fileTree("$buildDir") {
-        include("**/*.exec", "**/*.ec")
-    })
+    // Only include the unit test coverage data to satisfy Gradle 8.9 work validation
+    executionData.setFrom(files("$buildDir/jacoco/testDebugUnitTest.exec"))
 }
 
