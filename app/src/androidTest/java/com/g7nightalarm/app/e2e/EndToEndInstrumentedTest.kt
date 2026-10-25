@@ -451,6 +451,8 @@ class EndToEndInstrumentedTest {
                 p[SettingsKeys.lastLowWarnClearAt] = 0L
             }
         }
+        // Give MonitorService a moment to observe the latest settings snapshot
+        Thread.sleep(300)
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
@@ -477,6 +479,7 @@ class EndToEndInstrumentedTest {
                 p[SettingsKeys.lastLowWarnClearAt] = System.currentTimeMillis() - 20L * 60L * 1000L
             }
         }
+        Thread.sleep(300)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(75.0)
         Thread.sleep(1500)
@@ -508,6 +511,7 @@ class EndToEndInstrumentedTest {
                 p[SettingsKeys.lastLowClearAt] = 0L
             }
         }
+        Thread.sleep(300)
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
