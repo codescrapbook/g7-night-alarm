@@ -54,6 +54,13 @@ jobs:
             **/build/reports/**
             **/build/test-results/**
           if-no-files-found: ignore
+      - name: Upload app build dir (always, debug aid)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-dir
+          path: app/build/**
+          if-no-files-found: ignore
       - name: Upload JVM screenshots
         if: always()
         uses: actions/upload-artifact@v4
