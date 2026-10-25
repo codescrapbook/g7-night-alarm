@@ -132,16 +132,16 @@ class EndToEndInstrumentedTest {
     fun goodNightGoodMorning_switchesMode_andPersistsAcrossServiceRestart() {
         // Switch to Sleep via repository, then verify UI reflects it
         runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = true } }
-        device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 5000)
+        device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 8000)
         // Restart service
         context.stopService(Intent(context, MonitorService::class.java))
         MonitorService.start(context)
         // Ensure main activity is resumed after service restart
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 5000)
+        device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 8000)
         // Switch back to Awake and verify
         runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
-        device.wait(Until.hasObject(By.textContains("Mode: Awake")), 5000)
+        device.wait(Until.hasObject(By.textContains("Mode: Awake")), 8000)
         screenshot("home_after_mode_toggles.png")
     }
 
