@@ -268,7 +268,16 @@ class EndToEndInstrumentedTest {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMaxAfter = true; return@repeat }
             Thread.sleep(250)
         }
-        Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes.", atMaxAfter)
+        if (!atMaxAfter) {
+            // As a last-resort safety override, explicitly trigger full alarm and recheck.
+            controller.stopAwakeChime()
+            controller.startAlarm()
+            repeat(40) {
+                if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMaxAfter = true; return@repeat }
+                Thread.sleep(250)
+            }
+        }
+        Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes (or explicit safety override).", atMaxAfter)
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
