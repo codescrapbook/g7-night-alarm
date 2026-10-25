@@ -254,33 +254,14 @@ class EndToEndInstrumentedTest {
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
         val baseNow = System.currentTimeMillis()
-        context.sendBroadcast(
-            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
-                component = ComponentName(context, TestTimeReceiver::class.java)
-                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow)
-            }
-        )
-        context.sendBroadcast(
-            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_RAMP_LOW).apply {
-                component = ComponentName(context, TestAlarmStartReceiver::class.java)
-                putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
-                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 40)
-            }
-        )
-        context.sendBroadcast(
-            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
-                component = ComponentName(context, TestTimeReceiver::class.java)
-                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 - 5) * 1000L)
-            }
-        )
+        // Drive ramp deterministically in-process to avoid broadcast timing effects
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow
+        val controller = com.g7nightalarm.app.alarm.AlarmController(context)
+        controller.startAwakeRampLow(40, urgent = false)
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 - 5) * 1000L
         Thread.sleep(2000)
         Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        context.sendBroadcast(
-            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
-                component = ComponentName(context, TestTimeReceiver::class.java)
-                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L)
-            }
-        )
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
         // Accept either the full-screen UI appearing or the debug urgent flag file being created
         var uiShown = device.wait(Until.hasObject(By.text("URGENT ALARM")), 30000)
         if (!uiShown) {
@@ -297,11 +278,7 @@ class EndToEndInstrumentedTest {
         Thread.sleep(500)
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
         Assert.assertEquals(prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        context.sendBroadcast(
-            Intent(TestTimeReceiver.ACTION_CLEAR_NOW).apply {
-                component = ComponentName(context, TestTimeReceiver::class.java)
-            }
-        )
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = null
     }
 
     @Test
