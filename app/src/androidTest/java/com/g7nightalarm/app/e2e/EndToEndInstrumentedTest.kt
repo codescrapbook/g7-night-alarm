@@ -233,7 +233,7 @@ class EndToEndInstrumentedTest {
             if (!found) {
                 try {
                     device.executeShellCommand("am start -n ${context.packageName}/com.g7nightalarm.app.ui.MainActivity --ez debug_open_settings true")
-                    found = device.wait(Until.hasObject(By.textContains(\"Music Mode\")), 5000)
+                    found = device.wait(Until.hasObject(By.textContains("Music Mode")), 5000)
                 } catch (_: Throwable) { }
             }
         }
