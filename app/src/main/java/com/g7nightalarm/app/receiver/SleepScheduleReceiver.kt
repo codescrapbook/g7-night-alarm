@@ -31,7 +31,8 @@ class SleepScheduleReceiver : BroadcastReceiver() {
                 val cur = runBlocking { settings.flow.first() }
                 if (!cur.sleepMode) {
                     runBlocking { settings.update { it[SettingsKeys.sleepMode] = true } }
-                    tts.speak("Turning on for sleep.", 60)
+                    // In test inline mode, avoid real audio output on CI emulators.
+                    tts.speakMuted("Turning on for sleep.")
                 }
                 SleepScheduler.schedule(appContext, cur.autoSleepHour, cur.autoSleepMinute)
                 return

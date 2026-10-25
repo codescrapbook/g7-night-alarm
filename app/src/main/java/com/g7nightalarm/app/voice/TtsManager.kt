@@ -60,6 +60,11 @@ class TtsManager(private val context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
+    // Test helper to record a phrase without attempting audio output
+    fun speakMuted(message: String) {
+        lastMessage = message
+    }
+
     fun shutdown() {
         tts?.shutdown()
         tts = null
