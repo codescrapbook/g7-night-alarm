@@ -19,7 +19,7 @@ import com.g7nightalarm.app.ui.screens.SettingsScreen
 import com.g7nightalarm.app.ui.theme.G7Theme
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.onRoot
-import io.github.takahirom.roborazzi.compose.captureRoboImage
+import io.github.takahirom.roborazzi.captureRoboImage
 import java.io.FileOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
