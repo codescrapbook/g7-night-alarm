@@ -206,8 +206,12 @@ class MonitorService : Service() {
                 is AlarmEvent.High -> {
                     if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastHighClearAt, s.awakeHighRearmMin)) return@launch
                     startAwakeNotification(AlarmActionReceiver.TYPE_HIGH, "High", "Glucose high")
-                    if (musicEnabled && highUri != null) {
-                        alarmController.startAwakeMusicFromUri(awakeVol, highUri)
+                    if (musicEnabled) {
+                        if (highUri != null) {
+                            alarmController.startAwakeMusicFromUri(awakeVol, highUri)
+                        } else {
+                            alarmController.startAwakeMusicHighDefault(awakeVol)
+                        }
                     } else {
                         alarmController.startAwakeChimeHigh(awakeVol)
                     }
@@ -217,8 +221,12 @@ class MonitorService : Service() {
                     if (event.minutes >= 30) {
                         if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastSignalClearAt, s.awakeSignalLostRearmMin)) return@launch
                         startAwakeNotification(AlarmActionReceiver.TYPE_SIGNAL, "Signal lost", "No data for ${event.minutes} minutes")
-                        if (musicEnabled && sigUri != null) {
-                            alarmController.startAwakeMusicFromUri(awakeVol, sigUri)
+                        if (musicEnabled) {
+                            if (sigUri != null) {
+                                alarmController.startAwakeMusicFromUri(awakeVol, sigUri)
+                            } else {
+                                alarmController.startAwakeMusicSignalDefault(awakeVol)
+                            }
                         } else {
                             alarmController.startAwakeChimeSignal(awakeVol)
                         }

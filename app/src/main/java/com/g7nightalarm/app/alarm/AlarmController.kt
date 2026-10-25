@@ -350,6 +350,271 @@ class AlarmController(private val context: Context) {
         }
     }
 
+    fun startAwakeMusicHighDefault(volumePercent: Int) {
+        // Original 70s-funk-inspired loop "Going Up" (~125 BPM), clavinet stabs + syncopated bass
+        stopAwakeChime()
+        stopMedia()
+        forceAlarmVolumePercent(volumePercent)
+        val sampleRate = 44100
+        val bpm = 125.0
+        val secPerBeat = 60.0 / bpm
+        val bars = 8 // 8 bars ~ 15.36s
+        val beatsPerBar = 4
+        val loopDurSec = bars * beatsPerBar * secPerBeat
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            8192
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "GoingUpLoop") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                var tGlobal = 0.0
+                val dt = 1.0 / sampleRate
+                // Instrument helpers
+                fun envPerc(t: Double, attack: Double, decay: Double): Double {
+                    return when {
+                        t < attack -> t / attack
+                        else -> kotlin.math.exp(-(t - attack) / decay)
+                    }
+                }
+                fun square(phase: Double) = if (kotlin.math.sin(phase) >= 0) 1.0 else -1.0
+                fun saw(phase: Double) = 2.0 * (phase / (2 * Math.PI) - kotlin.math.floor(phase / (2 * Math.PI) + 0.5))
+                // Percussion (very light): kick (60Hz), snare (noise), hat (noise short)
+                val rng = java.util.Random(0xFUNK)
+                fun kick(tBar: Double): Double {
+                    // hits on beats 1 and 3
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val near1 = kotlin.math.min(kotlin.math.abs(beat - 0.0), kotlin.math.abs(beat - 2.0))
+                    val within = if (near1 < 0.1) 1.0 else 0.0
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.005, 0.06)
+                    val tone = kotlin.math.sin(2 * Math.PI * 60.0 * tt)
+                    return within * env * tone * 0.3
+                }
+                fun snare(tBar: Double): Double {
+                    // beats 2 and 4
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val near = kotlin.math.min(kotlin.math.abs(beat - 1.0), kotlin.math.abs(beat - 3.0))
+                    if (near < 0.05) {
+                        val tt = (beat % 1.0) * secPerBeat
+                        val env = envPerc(tt, 0.002, 0.05)
+                        val noise = (rng.nextDouble() * 2 - 1)
+                        return env * noise * 0.25
+                    }
+                    return 0.0
+                }
+                fun hihat(tBar: Double): Double {
+                    // 8th notes
+                    val beat8 = ((tBar / (secPerBeat / 2.0)) % (beatsPerBar * 2))
+                    val frac = beat8 % 1.0
+                    val env = if (frac < 0.15) kotlin.math.exp(-frac / 0.06) else 0.0
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    return env * noise * 0.1
+                }
+                // Bass pattern (E2, G2, A2, B2) syncopation per bar
+                fun bass(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val on = when {
+                        beat < 0.5 -> 82.41 // E2
+                        beat < 1.0 -> 98.00 // G2
+                        beat < 1.5 -> 110.00 // A2
+                        beat < 2.0 -> 98.00 // G2 ghost
+                        beat < 2.5 -> 123.47 // B2
+                        beat < 3.25 -> 110.00 // A2 sustained syncopation
+                        else -> 82.41 // E2 pickup
+                    }
+                    val phase = 2 * Math.PI * on * (tBar % secPerBeat)
+                    val wave = 0.6 * kotlin.math.sin(phase) + 0.4 * saw(phase)
+                    val frac = beat % 0.5
+                    val env = envPerc(frac * secPerBeat, 0.005, 0.1)
+                    return wave * env * 0.35
+                }
+                // Clavinet stabs (E4, G4, B4 syncopated 16th hits)
+                fun clav(tBar: Double): Double {
+                    val beat16 = ((tBar / (secPerBeat / 4.0)) % (beatsPerBar * 4))
+                    val which = (beat16.toInt() % 4)
+                    val freq = when (which) {
+                        0 -> 329.63 // E4
+                        1 -> 392.00 // G4
+                        2 -> 493.88 // B4
+                        else -> 392.00 // G4
+                    }
+                    val local = (beat16 % 1.0) * (secPerBeat / 4.0)
+                    val env = envPerc(local, attack = 0.003, decay = 0.06)
+                    val phase = 2 * Math.PI * freq * local
+                    val harmonics = square(phase) * 0.7 + kotlin.math.sin(phase * 2) * 0.3
+                    return harmonics * env * 0.25
+                }
+                // Seamless loop by fading the last 50ms to zero
+                val fadeTailSec = 0.05
+                while (!Thread.currentThread().isInterrupted) {
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        val tLoop = (tGlobal % loopDurSec)
+                        val mix =
+                            kick(tLoop) +
+                            snare(tLoop) +
+                            hihat(tLoop) +
+                            bass(tLoop) +
+                            clav(tLoop)
+                        // simple limiter
+                        val limited = mix.coerceIn(-1.0, 1.0)
+                        // apply tail fade for last fadeTailSec to make loop seamless
+                        val fade =
+                            if (tLoop > loopDurSec - fadeTailSec) (1.0 - (tLoop - (loopDurSec - fadeTailSec)) / fadeTailSec)
+                            else 1.0
+                        out[i] = (limited * fade * Short.MAX_VALUE).toInt().toShort()
+                        tGlobal += dt
+                        if (tGlobal >= loopDurSec) tGlobal -= loopDurSec
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
+    fun startAwakeMusicSignalDefault(volumePercent: Int) {
+        // Original 80s synth-pop loop "Lost Connection" (~130 BPM), gated drums + bright pads
+        stopAwakeChime()
+        stopMedia()
+        forceAlarmVolumePercent(volumePercent)
+        val sampleRate = 44100
+        val bpm = 130.0
+        val secPerBeat = 60.0 / bpm
+        val bars = 16 // ~29.5s
+        val beatsPerBar = 4
+        val loopDurSec = bars * beatsPerBar * secPerBeat
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            8192
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "LostConnectionLoop") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                var tGlobal = 0.0
+                val dt = 1.0 / sampleRate
+                val rng = java.util.Random(0xSYNTH)
+                fun envPerc(t: Double, attack: Double, decay: Double): Double {
+                    return when {
+                        t < attack -> t / attack
+                        else -> kotlin.math.exp(-(t - attack) / decay)
+                    }
+                }
+                fun gatePulse(t: Double, ratePerBeat: Double, duty: Double): Double {
+                    val period = secPerBeat / ratePerBeat
+                    val phase = (t % period) / period
+                    return if (phase < duty) 1.0 else 0.0
+                }
+                fun saw(phase: Double) = 2.0 * (phase / (2 * Math.PI) - kotlin.math.floor(phase / (2 * Math.PI) + 0.5))
+                // Drums (gated style)
+                fun kick(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val isHit = (kotlin.math.abs(beat - 0.0) < 0.05 || kotlin.math.abs(beat - 2.0) < 0.05)
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.003, 0.08)
+                    val tone = kotlin.math.sin(2 * Math.PI * 65.0 * tt)
+                    return (if (isHit) env * tone else 0.0) * 0.35
+                }
+                fun snare(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val isHit = (kotlin.math.abs(beat - 1.0) < 0.03 || kotlin.math.abs(beat - 3.0) < 0.03)
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.002, 0.07)
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    val gated = gatePulse(tBar, ratePerBeat = 2.0, duty = 0.45) // 8th-note gate
+                    return (if (isHit) env * noise else 0.0) * gated * 0.28
+                }
+                fun hat(tBar: Double): Double {
+                    val beat16 = ((tBar / (secPerBeat / 4.0)) % (beatsPerBar * 4))
+                    val frac = beat16 % 1.0
+                    val env = if (frac < 0.12) kotlin.math.exp(-frac / 0.05) else 0.0
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    val gated = gatePulse(tBar, ratePerBeat = 4.0, duty = 0.4) // 16th gating
+                    return env * noise * gated * 0.12
+                }
+                // Bright detuned pad chords progression across bars (original)
+                fun pad(tBar: Double): Double {
+                    // 4-chord cycle across bars: roots (D, G, E, F) in higher register to avoid muddy mix
+                    val barIdx = ((tGlobal / (secPerBeat * beatsPerBar))).toInt() % 4
+                    val rootFreq = when (barIdx) {
+                        0 -> 293.66 // D4
+                        1 -> 392.00 // G4
+                        2 -> 329.63 // E4
+                        else -> 349.23 // F4
+                    }
+                    val fifth = rootFreq * 1.5
+                    val octave = rootFreq * 2.0
+                    val phaseRoot = 2 * Math.PI * rootFreq * (tBar % (secPerBeat * beatsPerBar))
+                    val phaseFifth = 2 * Math.PI * fifth * (tBar % (secPerBeat * beatsPerBar))
+                    val phaseOct = 2 * Math.PI * octave * (tBar % (secPerBeat * beatsPerBar))
+                    val detune = 0.995
+                    val padWave =
+                        0.5 * saw(phaseRoot) + 0.5 * saw(phaseRoot * detune) +
+                        0.4 * saw(phaseFifth) + 0.3 * saw(phaseOct)
+                    // soft attack/decay within bar and gated amplitude
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val within = (beat % 1.0) * secPerBeat
+                    val env = envPerc(within, 0.02, 0.2)
+                    val gated = gatePulse(tBar, ratePerBeat = 2.0, duty = 0.5)
+                    return padWave * env * gated * 0.25
+                }
+                // Seamless loop by fading the last 70ms
+                val fadeTailSec = 0.07
+                while (!Thread.currentThread().isInterrupted) {
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        val tLoop = (tGlobal % loopDurSec)
+                        val mix =
+                            kick(tLoop) +
+                            snare(tLoop) +
+                            hat(tLoop) +
+                            pad(tLoop)
+                        val limited = mix.coerceIn(-1.0, 1.0)
+                        val fade =
+                            if (tLoop > loopDurSec - fadeTailSec) (1.0 - (tLoop - (loopDurSec - fadeTailSec)) / fadeTailSec)
+                            else 1.0
+                        out[i] = (limited * fade * Short.MAX_VALUE).toInt().toShort()
+                        tGlobal += dt
+                        if (tGlobal >= loopDurSec) tGlobal -= loopDurSec
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
     fun startAwakeMusicRampLow(volumePercentStart: Int, urgent: Boolean, contentUri: Uri?) {
         // Start music (URI if provided, else default melody), then ramp STREAM_ALARM volume to max over 5 min
         val startPct = if (urgent) maxOf(volumePercentStart, 80) else volumePercentStart

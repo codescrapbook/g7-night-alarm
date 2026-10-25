@@ -160,7 +160,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("High song")
-                val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
+                val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
                 Text(desc)
             }
             Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null) { Text("Pick") }
@@ -172,7 +172,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
                 scope.launch {
                     if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
-                    else alarm.startAwakeChimeHigh(vol)
+                    else alarm.startAwakeMusicHighDefault(vol)
                 }
             }) { Text("Preview") }
         }
@@ -180,7 +180,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("Signal lost song")
-                val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Not set (will use chime)"
+                val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
                 Text(desc)
             }
             Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null) { Text("Pick") }
@@ -192,7 +192,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
                 scope.launch {
                     if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
-                    else alarm.startAwakeChimeSignal(vol)
+                    else alarm.startAwakeMusicSignalDefault(vol)
                 }
             }) { Text("Preview") }
         }
