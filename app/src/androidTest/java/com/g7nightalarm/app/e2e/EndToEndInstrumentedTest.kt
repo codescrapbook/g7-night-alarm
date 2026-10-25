@@ -264,30 +264,34 @@ class EndToEndInstrumentedTest {
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
         val baseNow = System.currentTimeMillis()
-        // Drive ramp deterministically in-process to avoid broadcast timing effects
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow
-        val controller = com.g7nightalarm.app.alarm.AlarmController(context)
-        controller.startAwakeRampLow(40, urgent = false)
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 - 5) * 1000L
-        Thread.sleep(2000)
-        Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
-        // Verify ramp reached max volume (urgent escalation). Sleep-mode test separately verifies full-screen UI.
-        var atMaxAfter = false
-        repeat(60) {
-            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMaxAfter = true; return@repeat }
+        // Step 1: low-band reading (no ramp yet)
+        sendBgEstimate(75.0, ts = baseNow)
+        Thread.sleep(500)
+        // Step 2: sub-70 low reading triggers ramp from awake volume
+        sendBgEstimate(65.0, ts = baseNow + 5_000)
+        // Wait until volume is set to start (awakeVol)
+        val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
+        var atStart = false
+        repeat(80) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { atStart = true; return@repeat }
             Thread.sleep(250)
         }
-        if (!atMaxAfter) {
-            // As a last-resort safety override, explicitly trigger full alarm and recheck.
-            controller.stopAwakeChime()
-            controller.startAlarm()
-            repeat(40) {
-                if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMaxAfter = true; return@repeat }
-                Thread.sleep(250)
-            }
+        Assert.assertTrue("Expected ramp to start at awake volume.", atStart)
+        // Midpoint (~2.5 min): expect volume higher than start and less than max
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (2 * 60 + 30) * 1000L
+        Thread.sleep(1500)
+        val mid = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        Assert.assertTrue("Expected midpoint volume > start.", mid > awakeVol)
+        Assert.assertTrue("Expected midpoint volume < max.", mid < max)
+        // End (~5 min): expect max
+        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
+        var atMax = false
+        repeat(60) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMax = true; return@repeat }
+            Thread.sleep(250)
         }
-        Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes (or explicit safety override).", atMaxAfter)
+        Assert.assertTrue("Expected STREAM_ALARM to reach max after 5 minutes.", atMax)
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
