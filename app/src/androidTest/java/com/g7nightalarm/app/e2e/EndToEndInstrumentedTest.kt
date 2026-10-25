@@ -68,12 +68,18 @@ class EndToEndInstrumentedTest {
         val dirInternal = File(context.filesDir, "screenshots").apply { mkdirs() }
         val out = File(dirExternal, name)
         val outInternal = File(dirInternal, name)
-        // UiDevice screenshot works without window
+        // Try UiDevice screenshot; fall back to device screencap if it returns false (headless emulators)
         device.waitForIdle()
-        device.takeScreenshot(out)
+        val okExt = try { device.takeScreenshot(out) } catch (_: Throwable) { false }
+        if (!okExt) {
+            try { device.executeShellCommand("screencap -p ${out.absolutePath}") } catch (_: Throwable) {}
+        }
         try {
             // Also save to internal app storage to allow adb run-as retrieval on Android 13/14
-            device.takeScreenshot(outInternal)
+            val okInt = device.takeScreenshot(outInternal)
+            if (!okInt) {
+                device.executeShellCommand("screencap -p ${outInternal.absolutePath}")
+            }
         } catch (_: Throwable) { }
     }
 
