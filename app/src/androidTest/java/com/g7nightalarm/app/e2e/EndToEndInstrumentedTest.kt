@@ -64,12 +64,17 @@ class EndToEndInstrumentedTest {
     }
 
     private fun screenshot(name: String) {
-        val dir = File(context.getExternalFilesDir(null), "screenshots")
-        dir.mkdirs()
-        val out = File(dir, name)
+        val dirExternal = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
+        val dirInternal = File(context.filesDir, "screenshots").apply { mkdirs() }
+        val out = File(dirExternal, name)
+        val outInternal = File(dirInternal, name)
         // UiDevice screenshot works without window
         device.waitForIdle()
         device.takeScreenshot(out)
+        try {
+            // Also save to internal app storage to allow adb run-as retrieval on Android 13/14
+            device.takeScreenshot(outInternal)
+        } catch (_: Throwable) { }
     }
 
     @Before
