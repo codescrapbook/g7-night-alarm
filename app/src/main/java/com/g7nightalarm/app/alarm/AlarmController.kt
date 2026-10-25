@@ -731,6 +731,9 @@ class AlarmController(private val context: Context) {
                 val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
                 val curPercent = startPercent + ((endPercent - startPercent) * frac).toInt()
                 val set = (max * (curPercent / 100.0)).toInt().coerceIn(1, max)
+                try {
+                    android.util.Log.d("AlarmController", "VolumeRamp elapsed=${elapsed}ms frac=${"%.2f".format(frac)} cur%=$curPercent setVol=$set (max=$max)")
+                } catch (_: Throwable) {}
                 am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
                 if (frac >= 1.0) break
                 try { Thread.sleep(500) } catch (_: InterruptedException) { break }
