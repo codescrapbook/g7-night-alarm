@@ -15,32 +15,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class SleepScheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_AUTO_SLEEP) {
-            // Ensure asynchronous work can complete even after onReceive returns
-            val pending = goAsync()
             val appContext = context.applicationContext
-            CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    val repo = ModeRepository(appContext)
-                    val settings = SettingsRepository(appContext)
-                    val tts = TtsManager(appContext)
-                    tts.ensure()
-                    // Read current settings off the main thread
-                    val cur = withContext(Dispatchers.IO) { settings.flow.first() }
-                    if (!cur.sleepMode) {
-                        repo.setMode(AppMode.SLEEP, ModeTrigger.SCHEDULE)
-                        // Speak immediately so tests can observe the announcement deterministically
-                        tts.speak("Turning on for sleep.", 60)
-                    }
-                    // Reschedule the next day's alarm
-                    SleepScheduler.schedule(appContext, cur.autoSleepHour, cur.autoSleepMinute)
-                } finally {
-                    pending.finish()
-                }
+            val repo = ModeRepository(appContext)
+            val settings = SettingsRepository(appContext)
+            val tts = TtsManager(appContext)
+            tts.ensure()
+            // Perform minimal synchronous work to be deterministic in tests and reliable in background
+            val cur = runBlocking { settings.flow.first() }
+            if (!cur.sleepMode) {
+                runBlocking { repo.setMode(AppMode.SLEEP, ModeTrigger.SCHEDULE) }
+                // Speak immediately so tests can observe the announcement deterministically
+                tts.speak("Turning on for sleep.", 60)
             }
+            // Reschedule the next day's alarm
+            SleepScheduler.schedule(appContext, cur.autoSleepHour, cur.autoSleepMinute)
         }
     }
 
