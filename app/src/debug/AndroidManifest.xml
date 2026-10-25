@@ -1,5 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.g7nightalarm.app">
+
+    <application>
+        <activity
+            android:name="com.g7nightalarm.app.debug.ScreenshotActivity"
+            android:exported="true"
+            android:label="ScreenshotActivity">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.app.action.SCREENSHOT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- Override service types for debug/instrumented tests to avoid microphone FGS restrictions on API 34+ -->
