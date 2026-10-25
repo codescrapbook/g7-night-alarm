@@ -115,6 +115,12 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.12.2")
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    // Roborazzi for JVM screenshots
+    val roborazziVersion = "1.17.0"
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:$roborazziVersion")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:$roborazziVersion")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:$roborazziVersion")
 }
 
 // Allow references to generated code

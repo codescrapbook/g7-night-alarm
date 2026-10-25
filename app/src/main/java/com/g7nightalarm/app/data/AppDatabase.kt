@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.g7nightalarm.app.mode.ModeChangeEvent
 import com.g7nightalarm.app.mode.ModeDao
+import com.g7nightalarm.app.BuildConfig
 
 @Database(
     entities = [GlucoseReading::class, ModeChangeEvent::class],
@@ -25,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "g7-night-alarm.db"
                 ).fallbackToDestructiveMigration()
+                    .apply { if (BuildConfig.DEBUG) allowMainThreadQueries() }
                     .build()
                     .also { instance = it }
             }
