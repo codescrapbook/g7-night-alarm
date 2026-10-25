@@ -86,7 +86,12 @@ class MonitorService : Service() {
         startFallbackPolling()
         observeVoiceToggle()
         scheduleAutoSleep()
-        registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED))
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

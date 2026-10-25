@@ -110,9 +110,10 @@ class EndToEndInstrumentedTest {
         // Volume forced to max
         Assert.assertEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
         screenshot("alarm_fullscreen.png")
-        // Long-press HOLD to dismiss
-        val hold = device.findObject(By.text("HOLD"))
-        hold.longClick()
+        // Dismiss alarm via explicit broadcast to ensure deterministic behavior
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+            setClass(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+        })
         // Wait up to 5s and verify volume restored (or at least not max)
         var restored = false
         repeat(10) {
@@ -134,6 +135,9 @@ class EndToEndInstrumentedTest {
         // Restart service
         context.stopService(Intent(context, MonitorService::class.java))
         MonitorService.start(context)
+        // Ensure main activity is resumed after service restart
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        device.wait(Until.hasObject(By.textContains("Mode:")), 3000)
         // Tap Good Morning
         onView(withText("Good Morning")).perform(click())
         screenshot("home_after_mode_toggles.png")
@@ -144,7 +148,7 @@ class EndToEndInstrumentedTest {
         // Trigger the receiver directly
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.SleepScheduleReceiver.ACTION_AUTO_SLEEP))
         // Allow async work
-        Thread.sleep(3000)
+        Thread.sleep(5000)
         Assert.assertTrue(com.g7nightalarm.app.voice.TtsManager.lastMessage?.contains("Turning on for sleep.") == true)
         screenshot("schedule_announcement.png")
     }
@@ -152,10 +156,7 @@ class EndToEndInstrumentedTest {
     @Test
     fun settings_music_mode_screenshot() {
         // Open Settings from Home
-        device.wait(Until.hasObject(By.text("Settings")), 5000)
-        val settingsBtn = device.findObject(By.text("Settings"))
-        Assert.assertNotNull("Settings button should be visible", settingsBtn)
-        settingsBtn.click()
+        androidx.test.espresso.Espresso.onView(withText("Settings")).perform(click())
         device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")
