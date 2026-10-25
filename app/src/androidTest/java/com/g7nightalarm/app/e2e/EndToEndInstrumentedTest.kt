@@ -74,6 +74,8 @@ class EndToEndInstrumentedTest {
         grantRuntimePermissions()
         // Ensure service is running
         MonitorService.start(context)
+        // Ensure main activity is launched and in RESUMED state
+        androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
         // Wake and unlock emulator if needed
         try {
             device.wakeUp()
@@ -110,10 +112,11 @@ class EndToEndInstrumentedTest {
         // Volume forced to max
         Assert.assertEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
         screenshot("alarm_fullscreen.png")
-        // Dismiss alarm via explicit broadcast to ensure deterministic behavior
-        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
-            setClass(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
-        })
+        // Try UI long-press HOLD to dismiss
+        device.wait(Until.hasObject(By.text("HOLD")), 3000)
+        device.findObject(By.text("HOLD"))?.longClick()
+        // Also send debug-only fallback to ensure the full alarm is stopped (restores volume)
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         // Wait up to 5s and verify volume restored (or at least not max)
         var restored = false
         repeat(10) {

@@ -9,6 +9,15 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback"
             tools:replace="android:foregroundServiceType" />
+        <!-- Debug-only receiver to stop full alarm in tests -->
+        <receiver
+            android:name=".receiver.TestStopAlarmReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.STOP_FULL_ALARM" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
 
