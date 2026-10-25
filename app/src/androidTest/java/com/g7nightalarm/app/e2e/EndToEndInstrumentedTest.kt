@@ -446,13 +446,14 @@ class EndToEndInstrumentedTest {
         runBlocking {
             SettingsRepository(context).update { p ->
                 p[SettingsKeys.sleepMode] = false
-                p[SettingsKeys.awakeVolumePercent] = 40
+                // Use a value that rounds differently than the baseline on devices with low STREAM_ALARM max (e.g., 7)
+                p[SettingsKeys.awakeVolumePercent] = 60
                 p[SettingsKeys.lastLowWarnClearAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
+        val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Trigger low warning band at 75 mg/dL
@@ -503,13 +504,13 @@ class EndToEndInstrumentedTest {
         runBlocking {
             SettingsRepository(context).update { p ->
                 p[SettingsKeys.sleepMode] = false
-                p[SettingsKeys.awakeVolumePercent] = 40
+                p[SettingsKeys.awakeVolumePercent] = 60
                 p[SettingsKeys.lastLowClearAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
+        val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Trigger sub-70 low at 65 mg/dL
