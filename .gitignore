@@ -39,3 +39,6 @@ google-services.json
 !gradle/wrapper/
 !gradlew
 !gradlew.bat
+ 
+# Repo-local scratch and downloaded artifacts
+tmp/
