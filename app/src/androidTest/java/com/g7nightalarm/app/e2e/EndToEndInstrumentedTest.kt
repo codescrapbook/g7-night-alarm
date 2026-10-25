@@ -268,6 +268,9 @@ class EndToEndInstrumentedTest {
             SettingsRepository(context).update { p ->
                 p[SettingsKeys.sleepMode] = false
                 p[SettingsKeys.awakeVolumePercent] = 40
+                // Ensure no prior low snooze suppresses ramp
+                p[SettingsKeys.lastLowClearAt] = 0L
+                p[SettingsKeys.lastLowWarnClearAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
