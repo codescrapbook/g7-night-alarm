@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.g7nightalarm.app.data.AppDatabase
@@ -24,23 +24,36 @@ import androidx.compose.ui.test.captureToImage
 import android.graphics.Bitmap
 import java.io.FileOutputStream
 import kotlinx.coroutines.runBlocking
-import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import kotlin.math.sin
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.junit.Ignore
+import org.robolectric.Robolectric
+import org.robolectric.shadows.ShadowLooper
+import androidx.core.view.drawToBitmap
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class RoborazziScreenshotsTest {
-    @get:Rule
-    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val outDir = File("app/build/outputs/roborazzi/screens")
+
+    private fun renderAndSavePng(name: String, content: @Composable () -> Unit) {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        activity.setContent {
+            content()
+        }
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        outDir.mkdirs()
+        val file = File(outDir, name)
+        val bitmap = activity.window.decorView.drawToBitmap()
+        FileOutputStream(file).use { fos ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        }
+    }
 
     private fun seedReadings(hours: Int = 24) = runBlocking {
         val db = AppDatabase.get(context).glucoseDao()
@@ -79,15 +92,13 @@ class RoborazziScreenshotsTest {
         seedReadings(24)
         setUnits(Units.MG_DL)
         setMode(false)
-        outDir.mkdirs()
-        composeRule.setContent {
+        renderAndSavePng("home_awake_mgdl_24h_land.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
                 }
             }
         }
-        savePng("home_awake_mgdl_24h_land.png")
     }
 
     @Test
@@ -95,15 +106,13 @@ class RoborazziScreenshotsTest {
         seedReadings(24)
         setUnits(Units.MG_DL)
         setMode(true)
-        outDir.mkdirs()
-        composeRule.setContent {
+        renderAndSavePng("home_sleep_mgdl_24h_land.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
                 }
             }
         }
-        savePng("home_sleep_mgdl_24h_land.png")
     }
 
     @Test
@@ -111,52 +120,37 @@ class RoborazziScreenshotsTest {
         seedReadings(3)
         setUnits(Units.MMOL_L)
         setMode(false)
-        outDir.mkdirs()
-        composeRule.setContent {
+        renderAndSavePng("home_awake_mmol_3h_port.png") {
             G7Theme {
                 Box(Modifier.size(800.dp, 1280.dp)) {
                     HomeScreen(onOpenSettings = {})
                 }
             }
         }
-        savePng("home_awake_mmol_3h_port.png")
     }
 
     @Test
     fun settings_land() {
-        outDir.mkdirs()
-        composeRule.setContent {
+        renderAndSavePng("settings_land.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     SettingsScreen(onBack = {})
                 }
             }
         }
-        savePng("settings_land.png")
     }
 
     @Test
     fun settings_music_land() {
         setMusicMode(true)
-        outDir.mkdirs()
-        composeRule.setContent {
+        renderAndSavePng("settings_music_land.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     SettingsScreen(onBack = {})
                 }
             }
         }
-        savePng("settings_music_land.png")
     }
 
-    private fun savePng(name: String) {
-        composeRule.waitForIdle()
-        outDir.mkdirs()
-        val file = File(outDir, name)
-        val image = composeRule.onRoot().captureToImage().asAndroidBitmap()
-        FileOutputStream(file).use { fos ->
-            image.compress(Bitmap.CompressFormat.PNG, 100, fos)
-        }
-    }
 }
 
