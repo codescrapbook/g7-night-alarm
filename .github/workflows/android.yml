@@ -34,8 +34,6 @@ jobs:
         run: chmod +x gradlew
       - name: Run unit tests and coverage
         run: ./gradlew --no-daemon --stacktrace --info test jacocoTestReport assembleDebug
-      - name: Run JVM screenshot tests explicitly
-        run: ./gradlew --no-daemon --stacktrace --info :app:testDebugUnitTest --tests \"com.g7nightalarm.app.screenshots.RoborazziScreenshotsTest\"
       - name: Upload JUnit reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -160,25 +158,6 @@ jobs:
             # Also try copying from internal app storage via run-as, then pull again (Android 13/14 restricts /sdcard/Android/data)
             adb shell run-as com.g7nightalarm.app.debug sh -c 'if [ -d files/screenshots ]; then mkdir -p /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots && cp -f files/screenshots/* /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots/ 2>/dev/null || true; fi' || true
             adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true
-            # Post-test curated screenshots using debug-only ScreenshotActivity and screencap
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mgdl || true
-            sleep 2
-            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mgdl.png || true
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_sleep_mgdl || true
-            sleep 2
-            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_sleep_mgdl.png || true
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mmol_port || true
-            sleep 2
-            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mmol_port.png || true
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen settings || true
-            sleep 2
-            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/settings.png || true
-            # Urgent alarm full-screen
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.alarm.AlarmActivity || true
-            sleep 2
-            adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/alarm_urgent.png || true
-            # Stop alarm by force-stopping app to avoid lingering audio
-            adb shell am force-stop com.g7nightalarm.app.debug || true
       - name: Upload connected test results
         if: always()
         uses: actions/upload-artifact@v4
