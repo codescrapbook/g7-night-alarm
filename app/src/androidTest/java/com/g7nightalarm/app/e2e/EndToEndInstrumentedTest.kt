@@ -69,25 +69,35 @@ class EndToEndInstrumentedTest {
     private fun screenshot(name: String) {
         val dirExternal = File(context.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
         val dirInternal = File(context.filesDir, "screenshots").apply { mkdirs() }
-        val out = File(dirExternal, name)
-        val outInternal = File(dirInternal, name)
-        // Try UiDevice screenshot; fall back to device screencap if it returns false (headless emulators)
+        val outExt = File(dirExternal, name)
+        val outInt = File(dirInternal, name)
         device.waitForIdle()
-        val okExt = try { device.takeScreenshot(out) } catch (_: Throwable) { false }
-        if (!okExt) {
-            try {
-                // Fallback to public Pictures directory to avoid Android/data restrictions for shell user
-                device.executeShellCommand("mkdir -p /sdcard/Pictures/g7-night-alarm")
-                device.executeShellCommand("screencap -p /sdcard/Pictures/g7-night-alarm/${name}")
-            } catch (_: Throwable) {}
-        }
+        var captured = false
+        // Prefer UiAutomation screenshot to ensure foreground content
         try {
-            // Also save to internal app storage to allow adb run-as retrieval on Android 13/14
-            val okInt = device.takeScreenshot(outInternal)
-            if (!okInt) {
-                device.executeShellCommand("screencap -p ${outInternal.absolutePath}")
+            val bmp = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            if (bmp != null) {
+                java.io.FileOutputStream(outInt).use { fos -> bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, fos) }
+                java.io.FileOutputStream(outExt).use { fos -> bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, fos) }
+                captured = true
             }
         } catch (_: Throwable) { }
+        if (!captured) {
+            // Fallback to UiDevice
+            try {
+                captured = device.takeScreenshot(outInt)
+                if (captured) {
+                    outInt.copyTo(outExt, overwrite = true)
+                }
+            } catch (_: Throwable) { }
+        }
+        if (!captured) {
+            // Final fallback: device screencap
+            try {
+                device.executeShellCommand("mkdir -p /sdcard/Android/data/${context.packageName}/files/screenshots")
+                device.executeShellCommand("screencap -p /sdcard/Android/data/${context.packageName}/files/screenshots/${name}")
+            } catch (_: Throwable) { }
+        }
     }
 
     @Before
@@ -409,6 +419,63 @@ class EndToEndInstrumentedTest {
         Thread.sleep(1500)
         Assert.assertEquals("Expected high alarm suppressed within rearm window.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
         screenshot("snooze_high.png")
+    }
+
+    @Test
+    fun snoozeWindow_lowBand_30min_behavior() {
+        // Configure awake and baseline
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 40
+                p[SettingsKeys.lastLowWarnClearAt] = 0L
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
+        val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        // Trigger low warning band at 75 mg/dL
+        sendBgEstimate(75.0)
+        var reached = false
+        repeat(80) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { reached = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected low-band warning to set awake volume.", reached)
+        // Clear low warning and record timestamp
+        context.sendBroadcast(
+            Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN)
+            }
+        )
+        // Simulate 20 minutes since clear (within 30-min window)
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.lastLowWarnClearAt] = System.currentTimeMillis() - 20L * 60L * 1000L
+            }
+        }
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        sendBgEstimate(75.0)
+        Thread.sleep(1500)
+        Assert.assertEquals("Expected low-band alarm suppressed within 30 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        // After 31 minutes it should re-alarm
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.lastLowWarnClearAt] = System.currentTimeMillis() - 31L * 60L * 1000L
+            }
+        }
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        sendBgEstimate(75.0)
+        var relaunch = false
+        repeat(80) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { relaunch = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected low-band alarm to re-arm after 30 minutes.", relaunch)
+        screenshot("snooze_low_band.png")
     }
 
     @Test
