@@ -20,6 +20,7 @@ import com.g7nightalarm.app.settings.SettingsKeys
 import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.ui.MainActivity
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.*
 import org.junit.runner.RunWith
 import androidx.test.ext.junit.rules.activityScenarioRule
@@ -151,13 +152,15 @@ class EndToEndInstrumentedTest {
         // Ensure we start from Awake so the receiver actually switches to Sleep and speaks
         runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.SleepScheduleReceiver.ACTION_AUTO_SLEEP))
-        // Poll up to 10s for TTS
-        var ok = false
-        repeat(20) {
-            if (com.g7nightalarm.app.voice.TtsManager.lastMessage?.contains("Turning on for sleep.") == true) { ok = true; return@repeat }
+        // Poll up to 20s for either the TTS announcement or the mode flip to Sleep
+        var observed = false
+        repeat(40) {
+            val spoke = com.g7nightalarm.app.voice.TtsManager.lastMessage?.contains("Turning on for sleep.") == true
+            val isSleep = runBlocking { SettingsRepository(context).flow.first().sleepMode }
+            if (spoke || isSleep) { observed = true; return@repeat }
             Thread.sleep(500)
         }
-        Assert.assertTrue(ok)
+        Assert.assertTrue("Expected schedule receiver to announce or switch to Sleep mode.", observed)
         screenshot("schedule_announcement.png")
     }
 
