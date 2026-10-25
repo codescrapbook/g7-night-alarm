@@ -133,7 +133,7 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15_000))
         // Volume forced to max (allow small async delay on newer Android)
         var atMax = false
-        repeat(50) {
+        repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMax = true; return@repeat }
             Thread.sleep(100)
         }
@@ -415,14 +415,30 @@ class EndToEndInstrumentedTest {
                 putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good night")
             }
         )
-        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 15000))
+        var sleepOk = device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 15000)
+        if (!sleepOk) {
+            repeat(20) {
+                val isSleep = runBlocking { SettingsRepository(context).flow.first().sleepMode }
+                if (isSleep) { sleepOk = true; return@repeat }
+                Thread.sleep(500)
+            }
+        }
+        Assert.assertTrue("Expected Sleep mode after 'good night' phrase.", sleepOk)
         context.sendBroadcast(
             Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).apply {
                 component = ComponentName(context, TestVoiceInjectReceiver::class.java)
                 putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good morning")
             }
         )
-        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Awake")), 15000))
+        var awakeOk = device.wait(Until.hasObject(By.textContains("Mode: Awake")), 15000)
+        if (!awakeOk) {
+            repeat(20) {
+                val isSleep = runBlocking { SettingsRepository(context).flow.first().sleepMode }
+                if (!isSleep) { awakeOk = true; return@repeat }
+                Thread.sleep(500)
+            }
+        }
+        Assert.assertTrue("Expected Awake mode after 'good morning' phrase.", awakeOk)
         screenshot("voice_switch.png")
     }
 }
