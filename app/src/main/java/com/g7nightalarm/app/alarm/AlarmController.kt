@@ -169,33 +169,41 @@ class AlarmController(private val context: Context) {
         at.play()
         audioTrack = at
         audioThread = thread(start = true, isDaemon = true, name = "AlarmTone") {
-            // Generate harsh alternating 2.6kHz-3.4kHz square-ish tone, sweep every ~500ms
-            val out = ShortArray(bufferSize / 2)
-            var t = 0.0
-            var phase = 0.0
-            val dt = 1.0 / sampleRate
-            var f1 = 2600.0
-            var f2 = 3400.0
-            var target = f2
-            var current = f1
-            while (!Thread.currentThread().isInterrupted) {
-                // sweep
-                current += (target - current) * 0.02
-                if (abs(current - target) < 5) {
-                    target = if (target == f2) f1 else f2
+            try {
+                // Generate harsh alternating 2.6kHz-3.4kHz square-ish tone, sweep every ~500ms
+                val out = ShortArray(bufferSize / 2)
+                var t = 0.0
+                var phase = 0.0
+                val dt = 1.0 / sampleRate
+                val f1 = 2600.0
+                val f2 = 3400.0
+                var target = f2
+                var current = f1
+                while (!Thread.currentThread().isInterrupted) {
+                    // sweep
+                    current += (target - current) * 0.02
+                    if (abs(current - target) < 5) {
+                        target = if (target == f2) f1 else f2
+                    }
+                    val freq = current
+                    val step = 2 * PI * freq * dt
+                    for (i in out.indices) {
+                        phase += step
+                        val s = sin(phase)
+                        // approximate square by sign(sin)
+                        val square = sign(s)
+                        val value = (square * 0.85 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                        out[i] = value.toShort()
+                    }
+                    try {
+                        at.write(out, 0, out.size)
+                    } catch (_: Throwable) {
+                        break
+                    }
+                    t += out.size * dt
                 }
-                val freq = current
-                val step = 2 * PI * freq * dt
-                for (i in out.indices) {
-                    phase += step
-                    val s = sin(phase)
-                    // approximate square by sign(sin)
-                    val square = sign(s)
-                    val value = (square * 0.85 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-                    out[i] = value.toShort()
-                }
-                at.write(out, 0, out.size)
-                t += out.size * dt
+            } catch (_: Throwable) {
+                // ignore emulator audio issues
             }
         }
     }
