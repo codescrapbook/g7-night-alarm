@@ -33,6 +33,7 @@ class AlarmController(private val context: Context) {
     companion object {
         @Volatile private var globalPreviousAlarmVolume: Int? = null
         private const val ALARM_NOTIF_ID = 1001
+        @Volatile var testNowMs: Long? = null
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
@@ -43,7 +44,7 @@ class AlarmController(private val context: Context) {
      * Time source used for testing the awake-mode volume ramp. Defaults to System.currentTimeMillis.
      * Tests may override this to simulate passage of time deterministically.
      */
-    var nowProvider: () -> Long = { System.currentTimeMillis() }
+    var nowProvider: () -> Long = { testNowMs ?: System.currentTimeMillis() }
 
     fun showFullScreenAlarmNotification(): Notification {
         val fullScreenIntent = Intent(context, AlarmActivity::class.java)

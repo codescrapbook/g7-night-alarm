@@ -30,6 +30,9 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import java.io.File
+import com.g7nightalarm.app.receiver.TestAlarmStartReceiver
+import com.g7nightalarm.app.receiver.TestTimeReceiver
+import com.g7nightalarm.app.receiver.TestVoiceInjectReceiver
 
 @RunWith(AndroidJUnit4::class)
 @LargeTest
@@ -230,6 +233,129 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Expected to find 'Music Mode' in Settings.", found)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")
+    }
+
+    @Test
+    fun awakeRampLow_rampsToMax_and_switchesToUrgent_after5min() {
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 40
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val baseNow = System.currentTimeMillis()
+        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow))
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_RAMP_LOW).apply {
+                putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 40)
+            }
+        )
+        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 - 5) * 1000L))
+        Thread.sleep(1000)
+        Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L))
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 8000))
+        screenshot("awake_ramp_urgent.png")
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
+        Thread.sleep(500)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
+        Assert.assertEquals(prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_CLEAR_NOW))
+    }
+
+    @Test
+    fun awakeHigh_triggers_and_setsAwakeVolume() {
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 35
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val awakeVol = (max * (35 / 100.0)).toInt().coerceIn(1, max)
+        val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        sendBgEstimate(280.0)
+        var ok = false
+        repeat(40) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for high alarm.", ok)
+        screenshot("awake_high.png")
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH))
+        Thread.sleep(500)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, before, 0)
+    }
+
+    @Test
+    fun noData_signalLost_triggers_and_setsAwakeVolume() {
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 50
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val awakeVol = (max * (50 / 100.0)).toInt().coerceIn(1, max)
+        val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
+        val oldTs = System.currentTimeMillis() - 31L * 60L * 1000L
+        runBlocking {
+            dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = oldTs, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
+        }
+        var ok = false
+        repeat(60) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for signal lost.", ok)
+        screenshot("awake_signal_lost.png")
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL))
+        Thread.sleep(500)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, before, 0)
+    }
+
+    @Test
+    fun snoozeWindow_high_suppressesReAlarm_within60min() {
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 45
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val awakeVol = (max * (45 / 100.0)).toInt().coerceIn(1, max)
+        sendBgEstimate(280.0)
+        var reached = false
+        repeat(40) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { reached = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue(reached)
+        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH))
+        val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        sendBgEstimate(280.0)
+        Thread.sleep(1500)
+        Assert.assertEquals("Expected high alarm suppressed within rearm window.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        screenshot("snooze_high.png")
+    }
+
+    @Test
+    fun voicePhrase_switchesMode_viaInjectedPhrase() {
+        runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
+        context.sendBroadcast(Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good night"))
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 8000))
+        context.sendBroadcast(Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good morning"))
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Awake")), 8000))
+        screenshot("voice_switch.png")
     }
 }
 
