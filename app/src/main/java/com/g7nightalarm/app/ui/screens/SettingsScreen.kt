@@ -25,8 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.settings.SettingsKeys
@@ -61,20 +59,20 @@ fun SettingsScreen(onBack: () -> Unit) {
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(urgentLow, onValueChange = { urgentLow = it }, label = { Text("Urgent low (mg/dL)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(low, onValueChange = { low = it }, label = { Text("Low (mg/dL)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(high, onValueChange = { high = it }, label = { Text("High (mg/dL)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(urgentLow, onValueChange = { urgentLow = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Urgent low (mg/dL)") })
+            OutlinedTextField(low, onValueChange = { low = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Low (mg/dL)") })
+            OutlinedTextField(high, onValueChange = { high = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("High (mg/dL)") })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(rapidFall, onValueChange = { rapidFall = it }, label = { Text("Rapid fall (mg/dL/min)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(noData, onValueChange = { noData = it }, label = { Text("No data minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(rapidFall, onValueChange = { rapidFall = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Rapid fall (mg/dL/min)") })
+            OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes") })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Allow snooze")
                 Switch(checked = allowSnooze, onCheckedChange = { allowSnooze = it })
             }
-            OutlinedTextField(snoozeMin, onValueChange = { snoozeMin = it }, label = { Text("Snooze minutes") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(snoozeMin, onValueChange = { snoozeMin = it.filter { ch -> ch.isDigit() } }, label = { Text("Snooze minutes") })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -87,8 +85,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(autoHour, onValueChange = { autoHour = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Auto Sleep Hour (0-23)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(autoMinute, onValueChange = { autoMinute = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Minute (0-59)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(autoHour, onValueChange = { autoHour = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Auto Sleep Hour (0-23)") })
+            OutlinedTextField(autoMinute, onValueChange = { autoMinute = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Minute (0-59)") })
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = {
