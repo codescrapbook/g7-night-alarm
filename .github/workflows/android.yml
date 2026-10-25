@@ -140,6 +140,13 @@ jobs:
             chmod +x gradlew
             ./gradlew --no-daemon assembleDebug assembleAndroidTest
             adb devices
+            # Keep screen awake and unlock before tests
+            adb shell settings put system screen_off_timeout 2147483647 || true
+            adb shell svc power stayon true || true
+            adb shell input keyevent 82 || true
+            adb shell wm dismiss-keyguard || true
+            # Proactively launch the app activity so Espresso starts with a RESUMED activity
+            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.MainActivity || true
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0

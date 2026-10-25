@@ -76,10 +76,9 @@ class EndToEndInstrumentedTest {
         MonitorService.start(context)
         // Ensure main activity is launched and in RESUMED state
         androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
-        // Wake and unlock emulator if needed
+        // Wake emulator if needed
         try {
             device.wakeUp()
-            device.pressHome()
         } catch (_: Throwable) {}
     }
 
