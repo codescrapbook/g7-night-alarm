@@ -70,12 +70,14 @@ class EndToEndInstrumentedTest {
         val outInternal = File(dirInternal, name)
         // Try UiDevice screenshot; fall back to device screencap if it returns false (headless emulators)
         device.waitForIdle()
-        try { device.takeScreenshot(out) } catch (_: Throwable) { /* ignore */ }
-        // Always also write a public copy via screencap for CI artifact collection
-        try {
-            device.executeShellCommand("mkdir -p /sdcard/Pictures/g7-night-alarm")
-            device.executeShellCommand("screencap -p /sdcard/Pictures/g7-night-alarm/${name}")
-        } catch (_: Throwable) {}
+        val okExt = try { device.takeScreenshot(out) } catch (_: Throwable) { false }
+        if (!okExt) {
+            try {
+                // Fallback to public Pictures directory to avoid Android/data restrictions for shell user
+                device.executeShellCommand("mkdir -p /sdcard/Pictures/g7-night-alarm")
+                device.executeShellCommand("screencap -p /sdcard/Pictures/g7-night-alarm/${name}")
+            } catch (_: Throwable) {}
+        }
         try {
             // Also save to internal app storage to allow adb run-as retrieval on Android 13/14
             val okInt = device.takeScreenshot(outInternal)
