@@ -33,7 +33,6 @@ import org.junit.Ignore
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
-@Ignore("Flaky on CI; covered by emulator screenshots")
 class RoborazziScreenshotsTest {
     @get:Rule
     val composeRule = createComposeRule()
