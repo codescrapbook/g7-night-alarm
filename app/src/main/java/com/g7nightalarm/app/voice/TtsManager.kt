@@ -35,6 +35,8 @@ class TtsManager(private val context: Context) : TextToSpeech.OnInitListener {
 
     fun speak(message: String, tempVolumePercent: Int? = null) {
         ensure()
+        // Record the last message even if TTS isn't ready yet (useful for tests and telemetry)
+        lastMessage = message
         if (!ready) return
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (tempVolumePercent != null) {
@@ -43,7 +45,6 @@ class TtsManager(private val context: Context) : TextToSpeech.OnInitListener {
             val set = (max * (tempVolumePercent / 100.0)).toInt().coerceIn(1, max)
             am.setStreamVolume(AudioManager.STREAM_MUSIC, set, 0)
         }
-        lastMessage = message
         tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "g7-tts")
         if (tempVolumePercent != null) {
             // Restore later after a short delay

@@ -125,7 +125,7 @@ class EndToEndInstrumentedTest {
         }
         // Try to restore explicitly if not already
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
-        Assert.assertTrue("Alarm volume should be restored after dismiss. Actual: ${am.getStreamVolume(AudioManager.STREAM_ALARM)}", am.getStreamVolume(AudioManager.STREAM_ALARM) != max)
+        Assert.assertEquals("Alarm volume should be restored to previous level.", prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
     }
 
     @Test
