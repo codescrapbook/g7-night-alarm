@@ -90,6 +90,8 @@ class EndToEndInstrumentedTest {
     @Before
     fun setUp() {
         grantRuntimePermissions()
+        // Disable voice to avoid TTS audio on CI emulators
+        runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.voiceEnabled] = false } }
         // Ensure service is running
         MonitorService.start(context)
         // Ensure main activity is launched and in RESUMED state
