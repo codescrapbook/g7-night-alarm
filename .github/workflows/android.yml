@@ -155,10 +155,9 @@ jobs:
             adb logcat -d > artifacts/logcat/logcat-api${{ matrix.api-level }}.txt || true
             # Pull emulator screenshots written by tests
             adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true
-            # Also try pulling from internal app storage via run-as (Android 13/14 restricts /sdcard/Android/data)
-            for f in $(adb shell run-as com.g7nightalarm.app.debug ls files/screenshots 2>/dev/null || true); do
-              adb exec-out run-as com.g7nightalarm.app.debug cat files/screenshots/$f > artifacts/screenshots/api${{ matrix.api-level }}/$f || true
-            done
+            # Also try copying from internal app storage via run-as, then pull again (Android 13/14 restricts /sdcard/Android/data)
+            adb shell run-as com.g7nightalarm.app.debug sh -c 'if [ -d files/screenshots ]; then mkdir -p /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots && cp -f files/screenshots/* /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots/ 2>/dev/null || true; fi' || true
+            adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true
       - name: Upload connected test results
         if: always()
         uses: actions/upload-artifact@v4
