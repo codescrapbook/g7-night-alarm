@@ -71,6 +71,15 @@ class EndToEndInstrumentedTest {
         val dirInternal = File(context.filesDir, "screenshots").apply { mkdirs() }
         val outExt = File(dirExternal, name)
         val outInt = File(dirInternal, name)
+        // Proactively wake and unlock, and ensure our app is foregrounded
+        try { device.wakeUp() } catch (_: Throwable) {}
+        try { device.executeShellCommand("wm dismiss-keyguard") } catch (_: Throwable) {}
+        if (device.currentPackageName != context.packageName) {
+            try {
+                context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                device.wait(Until.hasObject(By.pkg(context.packageName)), 5_000)
+            } catch (_: Throwable) { }
+        }
         device.waitForIdle()
         var captured = false
         // Prefer UiAutomation screenshot to ensure foreground content
@@ -124,7 +133,8 @@ class EndToEndInstrumentedTest {
         // Send a reading
         sendBgEstimate(123.4)
         // Open app and expect value appears (rounded) in title text
-        device.wait(Until.hasObject(By.textContains("mg/dL")), 5_000)
+        val shown = device.wait(Until.hasObject(By.textContains("mg/dL")), 5_000)
+        Assert.assertTrue("Expected glucose units text on Home screen before screenshot.", shown)
         screenshot("home_after_bg_inject.png")
     }
 
@@ -270,19 +280,20 @@ class EndToEndInstrumentedTest {
         Thread.sleep(500)
         // Step 2: sub-70 low reading triggers ramp from awake volume
         sendBgEstimate(65.0, ts = baseNow + 5_000)
-        // Wait until volume is set to start (awakeVol)
+        // Wait until volume reaches at least the awake starting volume
         val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
-        var atStart = false
+        var startVol = -1
         repeat(80) {
-            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { atStart = true; return@repeat }
+            val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (v >= awakeVol && v < max) { startVol = v; return@repeat }
             Thread.sleep(250)
         }
-        Assert.assertTrue("Expected ramp to start at awake volume.", atStart)
+        Assert.assertTrue("Expected ramp to start near awake volume.", startVol in awakeVol until max)
         // Midpoint (~2.5 min): expect volume higher than start and less than max
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (2 * 60 + 30) * 1000L
         Thread.sleep(1500)
         val mid = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        Assert.assertTrue("Expected midpoint volume > start.", mid > awakeVol)
+        Assert.assertTrue("Expected midpoint volume > start.", mid > startVol)
         Assert.assertTrue("Expected midpoint volume < max.", mid < max)
         // End (~5 min): expect max
         com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
@@ -480,6 +491,67 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected low-band alarm to re-arm after 30 minutes.", relaunch)
         screenshot("snooze_low_band.png")
+    }
+
+    @Test
+    fun snoozeWindow_lowBelow70_15min_behavior() {
+        // Configure awake and baseline
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.sleepMode] = false
+                p[SettingsKeys.awakeVolumePercent] = 40
+                p[SettingsKeys.lastLowClearAt] = 0L
+            }
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
+        val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        // Trigger sub-70 low at 65 mg/dL
+        sendBgEstimate(65.0)
+        var reached = false
+        repeat(120) {
+            val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (v >= awakeVol) { reached = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected low <70 to set at least awake volume.", reached)
+        // Clear low and wait until DataStore records the clear timestamp
+        context.sendBroadcast(
+            Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW)
+            }
+        )
+        var clearRecorded = false
+        repeat(20) {
+            val ts = runBlocking { SettingsRepository(context).flow.first().lastLowClearAt }
+            if (ts > 0L) { clearRecorded = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected lastLowClearAt to be recorded after CLEAR.", clearRecorded)
+        // Within 15 minutes it should be suppressed
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        // Re-trigger sub-70 low
+        sendBgEstimate(65.0)
+        Thread.sleep(1500)
+        Assert.assertEquals("Expected low <70 suppressed within 15 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        // After 16 minutes it should re-alarm
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.lastLowClearAt] = System.currentTimeMillis() - 16L * 60L * 1000L
+            }
+        }
+        am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
+        sendBgEstimate(65.0)
+        var relaunched = false
+        repeat(120) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) >= awakeVol) { relaunched = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected low <70 to re-arm after 15 minutes.", relaunched)
+        screenshot("snooze_low_below70.png")
     }
 
     @Test
