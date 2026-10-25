@@ -13,6 +13,7 @@ import com.g7nightalarm.app.voice.TtsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class SleepScheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -22,9 +23,7 @@ class SleepScheduleReceiver : BroadcastReceiver() {
             val tts = TtsManager(context)
             tts.ensure()
             CoroutineScope(Dispatchers.IO).launch {
-                val s = settings.flow
-                // get current one-shot via first()
-                val cur = kotlinx.coroutines.flow.first(s)
+                val cur = settings.flow.first()
                 if (!cur.sleepMode) {
                     repo.setMode(AppMode.SLEEP, ModeTrigger.SCHEDULE)
                     tts.speak("Turning on for sleep.", 60)

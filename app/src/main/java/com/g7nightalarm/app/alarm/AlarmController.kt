@@ -20,6 +20,7 @@ import com.g7nightalarm.app.R
 import com.g7nightalarm.app.ui.alarm.AlarmActivity
 import kotlin.concurrent.thread
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sin
 

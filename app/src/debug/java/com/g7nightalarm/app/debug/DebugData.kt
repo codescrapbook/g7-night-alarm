@@ -2,6 +2,7 @@ package com.g7nightalarm.app.debug
 
 import android.content.Context
 import android.util.Log
+import com.g7nightalarm.app.BuildConfig
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import kotlinx.coroutines.CoroutineScope

@@ -6,6 +6,9 @@ import android.content.Intent
 import com.g7nightalarm.app.schedule.SleepScheduler
 import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.service.MonitorService
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -17,8 +20,8 @@ class BootReceiver : BroadcastReceiver() {
                 MonitorService.start(context)
                 // Reschedule auto-sleep
                 val settings = SettingsRepository(context)
-                kotlinx.coroutines.GlobalScope.launch {
-                    val s = kotlinx.coroutines.flow.first(settings.flow)
+                GlobalScope.launch {
+                    val s = settings.flow.first()
                     SleepScheduler.schedule(context, s.autoSleepHour, s.autoSleepMinute)
                 }
             }

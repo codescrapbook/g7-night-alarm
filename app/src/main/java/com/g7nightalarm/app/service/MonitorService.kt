@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -40,6 +41,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import java.text.DecimalFormat
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.first
 
 class MonitorService : Service() {
 
@@ -128,7 +130,7 @@ class MonitorService : Service() {
 
     private fun handleAlarmEvent(event: AlarmEvent, latest: GlucoseReading?) {
         scope.launch {
-            val s = kotlinx.coroutines.flow.first(settings.flow)
+            val s = settings.flow.first()
             val mode = if (s.sleepMode) AppMode.SLEEP else AppMode.AWAKE
             val full = when (event) {
                 is AlarmEvent.None -> false
@@ -239,7 +241,7 @@ class MonitorService : Service() {
 
     private fun scheduleAutoSleep() {
         scope.launch {
-            val s = kotlinx.coroutines.flow.first(settings.flow)
+            val s = settings.flow.first()
             com.g7nightalarm.app.schedule.SleepScheduler.schedule(
                 this@MonitorService, s.autoSleepHour, s.autoSleepMinute
             )

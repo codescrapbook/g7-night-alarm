@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -39,14 +40,16 @@ android {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    // Compose compiler plugin managed by kotlin plugin for Kotlin 2.0+
     kotlinOptions {
         jvmTarget = "17"
         freeCompilerArgs += listOf(
             "-Xcontext-receivers"
         )
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     packaging {
         resources {
@@ -54,11 +57,7 @@ android {
         }
     }
 
-    // Foreground service types for Android 14+
-    @Suppress("UnstableApiUsage")
-    androidResources {
-        generateLocaleConfig = true
-    }
+    // Default resource processing
 }
 
 dependencies {
@@ -72,6 +71,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3:1.3.0")
+    implementation("com.google.android.material:material:1.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

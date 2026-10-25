@@ -1,14 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.G7NightAlarm" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.G7NightAlarm" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:statusBarColor">@android:color/black</item>
         <item name="android:navigationBarColor">@android:color/black</item>
     </style>
 
-    <style name="Theme.G7NightAlarm.AlarmFullScreen" parent="Theme.Material3.Dark.NoActionBar">
+    <style name="Theme.G7NightAlarm.AlarmFullScreen" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:windowShowWhenLocked">true</item>
-        <item name="android:windowTurnScreenOn">true</item>
         <item name="android:statusBarColor">@android:color/black</item>
         <item name="android:navigationBarColor">@android:color/black</item>
     </style>

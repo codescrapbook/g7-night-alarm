@@ -2,6 +2,7 @@ package com.g7nightalarm.app.settings
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -77,7 +78,7 @@ class SettingsRepository(private val context: Context) {
         )
     }
 
-    suspend fun update(block: suspend (Preferences.MutablePreferences) -> Unit) {
+    suspend fun update(block: suspend (MutablePreferences) -> Unit) {
         context.dataStore.edit { prefs ->
             block(prefs)
         }
