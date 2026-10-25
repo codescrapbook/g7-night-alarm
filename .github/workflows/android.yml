@@ -31,7 +31,7 @@ jobs:
       - name: Make gradle executable
         run: chmod +x gradlew
       - name: Run unit tests and coverage
-        run: ./gradlew --no-daemon test jacocoTestReport assembleDebug
+        run: ./gradlew --no-daemon --stacktrace --info test jacocoTestReport assembleDebug
       - name: Upload JUnit reports
         uses: actions/upload-artifact@v4
         with:
@@ -45,6 +45,15 @@ jobs:
           path: |
             app/build/reports/jacoco/jacocoTestReport/html/**
             app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+      - name: Upload Gradle reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-reports
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: ignore
       - name: Upload JVM screenshots
         if: always()
         uses: actions/upload-artifact@v4
