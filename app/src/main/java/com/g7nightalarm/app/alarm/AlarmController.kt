@@ -393,7 +393,7 @@ class AlarmController(private val context: Context) {
                 fun square(phase: Double) = if (kotlin.math.sin(phase) >= 0) 1.0 else -1.0
                 fun saw(phase: Double) = 2.0 * (phase / (2 * Math.PI) - kotlin.math.floor(phase / (2 * Math.PI) + 0.5))
                 // Percussion (very light): kick (60Hz), snare (noise), hat (noise short)
-                val rng = java.util.Random(0xFUNK)
+                val rng = java.util.Random(0xF0F0A9BCL)
                 fun kick(tBar: Double): Double {
                     // hits on beats 1 and 3
                     val beat = (tBar / secPerBeat) % beatsPerBar
@@ -522,7 +522,7 @@ class AlarmController(private val context: Context) {
                 val out = ShortArray(bufferSize / 2)
                 var tGlobal = 0.0
                 val dt = 1.0 / sampleRate
-                val rng = java.util.Random(0xSYNTH)
+                val rng = java.util.Random(0x51AB12CDL)
                 fun envPerc(t: Double, attack: Double, decay: Double): Double {
                     return when {
                         t < attack -> t / attack
