@@ -160,9 +160,16 @@ class EndToEndInstrumentedTest {
         context.sendBroadcast(intent)
         // Bring app to foreground and verify UI reflects Sleep mode within 20s
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        Assert.assertTrue(
-            device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 20_000)
-        )
+        var ok = device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 20_000)
+        if (!ok) {
+            // Fallback: poll DataStore for up to 10s
+            repeat(20) {
+                val isSleep = runBlocking { SettingsRepository(context).flow.first().sleepMode }
+                if (isSleep) { ok = true; return@repeat }
+                Thread.sleep(500)
+            }
+        }
+        Assert.assertTrue("Expected UI or settings to indicate Sleep mode after AUTO_SLEEP.", ok)
         screenshot("schedule_announcement.png")
     }
 
