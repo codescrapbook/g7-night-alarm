@@ -149,6 +149,9 @@ class RoborazziScreenshotsTest {
     private fun savePng(name: String) {
         // Ensure composition settled
         composeRule.waitForIdle()
+        try {
+            Thread.sleep(800)
+        } catch (_: InterruptedException) {}
         val img = composeRule.onRoot().captureToImage()
         val bmp = img.asAndroidBitmap()
         outDir.mkdirs()
