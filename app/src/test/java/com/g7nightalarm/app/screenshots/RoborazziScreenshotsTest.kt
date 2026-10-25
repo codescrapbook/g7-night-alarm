@@ -19,7 +19,8 @@ import com.g7nightalarm.app.ui.screens.SettingsScreen
 import com.g7nightalarm.app.ui.theme.G7Theme
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.onRoot
-import io.github.takahirom.roborazzi.captureRoboImage
+import androidx.compose.ui.test.captureToImage
+import android.graphics.Bitmap
 import java.io.FileOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -151,7 +152,10 @@ class RoborazziScreenshotsTest {
         composeRule.waitForIdle()
         outDir.mkdirs()
         val file = File(outDir, name)
-        composeRule.onRoot().captureRoboImage(file.absolutePath)
+        val image = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        FileOutputStream(file).use { fos ->
+            image.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        }
     }
 }
 
