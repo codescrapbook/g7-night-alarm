@@ -77,7 +77,21 @@ Artifacts:
 CI
 --
 This repo includes a GitHub Actions workflow to build on CI:
-- Runs `./gradlew assembleDebug test` and uploads `app-debug.apk` as an artifact.
+- Unit job runs `./gradlew test jacocoTestReport` and uploads JUnit + JaCoCo reports. It also builds and uploads the debug APK and JVM screenshots.
+- Instrumented job runs connected tests on an emulator (API 30 and 34, tablet profile, landscape) and uploads JUnit reports, logcat, and emulator screenshots.
+- Optional Firebase Test Lab job (manual dispatch or push to `main`) runs the instrumented suite on one physical and one virtual device if secrets are configured.
+
+Firebase Test Lab setup (free Spark plan)
+-----------------------------------------
+To enable the optional Test Lab job:
+1. Create a free Firebase project (Spark plan).
+2. In Google Cloud Console for that project, create a service account:
+   - Roles: `Firebase Test Lab Admin`, `Storage Object Admin`, and `Viewer` (minimum for runs and result access).
+   - Create a JSON key for the service account and save it locally.
+3. In GitHub, go to Settings → Secrets and variables → Actions:
+   - Add secret `FIREBASE_PROJECT_ID` with your Firebase/GCP Project ID (e.g., `my-firebase-project`).
+   - Add secret `GCP_SA_KEY` with the contents of the service account JSON key.
+4. Trigger the workflow manually (Actions → Android CI → Run workflow) or push to `main`. If secrets are missing, the job prints a notice and skips without failing.
 
 Sideloading on your Android tablet
 ----------------------------------
