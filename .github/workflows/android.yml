@@ -3,12 +3,17 @@ name: Android CI
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  unit:
+    name: Unit tests and build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21
@@ -25,27 +30,187 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Make gradle executable
         run: chmod +x gradlew
-      - name: Build and test
-        run: ./gradlew --no-daemon assembleDebug test
+      - name: Run unit tests and coverage
+        run: ./gradlew --no-daemon test jacocoTestReport assembleDebug
+      - name: Upload JUnit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-unit
+          path: |
+            app/build/reports/tests/testDebugUnitTest/**
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: |
+            app/build/reports/jacoco/jacocoTestReport/html/**
+            app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+      - name: Upload JVM screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-jvm
+          path: app/build/outputs/roborazzi/screens/**/*.png
+          if-no-files-found: ignore
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk
+          name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Create prerelease with debug APK (manual or tag)
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('prerelease-{0}', github.run_id) }}
+          name: Nightly build ${{ github.run_id }}
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
 
-  instrumented-tests:
-    name: Android Instrumented (self-hosted emulator)
-    runs-on: [self-hosted, android-emulator]
+  instrumented:
+    name: Instrumented tests (AVD)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [30, 34]
     steps:
       - uses: actions/checkout@v4
-      - name: Build and run emulator tests in Docker
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Accept SDK licenses
+        run: yes | sdkmanager --licenses
+      - name: Install SDK components
         run: |
-          chmod +x scripts/run-android-tests.sh
-          ./scripts/run-android-tests.sh
-      - name: Upload instrumented test reports
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "platforms;android-${{ matrix.api-level }}" \
+            "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+      - name: Enable KVM for emulator
+        run: |
+          echo 'KERNEL=="kvm", MODE="0666"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chown $USER /dev/kvm || true
+      - name: AVD cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}-google_apis-x86_64
+      - name: Run connected tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          device: pixel_tablet
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot
+          script: |
+            chmod +x gradlew
+            ./gradlew --no-daemon assembleDebug assembleAndroidTest
+            adb devices
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            ./gradlew --no-daemon connectedDebugAndroidTest
+            mkdir -p artifacts/logcat artifacts/screenshots
+            adb logcat -d > artifacts/logcat/logcat-api${{ matrix.api-level }}.txt || true
+            # Pull emulator screenshots written by tests
+            adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true
+      - name: Upload connected test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-instrumented-reports
-          path: artifacts/**
+          name: android-instrumented-results-api${{ matrix.api-level }}
+          path: |
+            app/build/outputs/androidTest-results/connected/**
+            app/build/reports/androidTests/connected/**
+          if-no-files-found: ignore
+      - name: Upload logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logcat-api${{ matrix.api-level }}
+          path: artifacts/logcat/**
+          if-no-files-found: ignore
+      - name: Upload emulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-emulator-api${{ matrix.api-level }}
+          path: artifacts/screenshots/**
+          if-no-files-found: ignore
+
+  firebase-test-lab:
+    name: Firebase Test Lab (manual/main only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    env:
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+    steps:
+      - name: Check secrets present
+        run: |
+          if [ -z "${GCP_SA_KEY}" ] || [ -z "${FIREBASE_PROJECT_ID}" ]; then
+            echo "Firebase secrets missing; skipping Test Lab run."
+            echo "GCP_SA_KEY or FIREBASE_PROJECT_ID not set."
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Accept SDK licenses
+        run: yes | sdkmanager --licenses
+      - name: Install SDK components
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Build APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug assembleAndroidTest
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.FIREBASE_PROJECT_ID }}
+          service_account_key: ${{ env.GCP_SA_KEY }}
+      - name: Run on Test Lab (physical tablet if available)
+        continue-on-error: true
+        run: |
+          set -x
+          # Try to find a physical tablet device supporting API 30+; fallback to a phone
+          PHYSICAL_MODEL=$(gcloud firebase test android models list --format="value(id)" --filter="form=PHYSICAL AND formFactor:TABLET" | head -n1)
+          if [ -z "$PHYSICAL_MODEL" ]; then PHYSICAL_MODEL=redfin; fi
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app app/build/outputs/apk/debug/app-debug.apk \
+            --test app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --device model=$PHYSICAL_MODEL,version=30,locale=en,orientation=landscape \
+            --timeout 10m
+      - name: Run on Test Lab (virtual device)
+        continue-on-error: true
+        run: |
+          set -x
+          VIRTUAL_MODEL=$(gcloud firebase test android models list --format="value(id)" --filter="form=VIRTUAL AND formFactor:TABLET" | head -n1)
+          if [ -z "$VIRTUAL_MODEL" ]; then VIRTUAL_MODEL=MediumPhone.arm; fi
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app app/build/outputs/apk/debug/app-debug.apk \
+            --test app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --device model=$VIRTUAL_MODEL,version=30,locale=en,orientation=landscape \
+            --timeout 10m
 
 
