@@ -1,0 +1,684 @@
+# Issue: nightscout/AndroidAPS #3688
+
+- Repository: nightscout/AndroidAPS | Opensource automated insulin delivery system (closed loop) | 1K stars | Kotlin
+
+## [3.3] Faulty calculation of delta
+
+- Author: [@quizzmaster](https://github.com/quizzmaster)
+- Association: CONTRIBUTOR
+- State: open
+- Labels: question - more info needed
+- Created: 2025-01-03T09:07:42Z
+- Updated: 2025-06-01T18:20:49Z
+
+With the current master (3.3) I face a serious problem with the calculation of the deltas. Most of the time, the delta is calculated as zero although the bg values show differences:
+[Image: IMG-20250103-WA0001 | https://github.com/user-attachments/assets/71836c32-b88c-4ef4-bc61-1219604e2222]
+[Image: IMG-20250103-WA0002 | https://github.com/user-attachments/assets/b4a2fee6-ae6c-489b-b5f8-65c34a20824c]
+
+The graph also shows many pale bg values:
+[Image: Screenshot_20250103-094210 | https://github.com/user-attachments/assets/d58e8a3c-1133-4b66-842c-47a9a0893fe4]
+
+I can provide more informations or logs if needed
+
+---
+
+### Timeline
+
+**@olorinmaia** commented · Jan 3, 2025 at 12:25pm · edited
+
+> I use G7 with xDrip direct connection 3.3 master and Fake data source 3.3 dev and I don't experience this.
+> 
+> Can you provide more info.
+> Sensor type, setup in regards to getting bg to AAPS, logs from AAPS?
+
+**@quizzmaster** commented · Jan 3, 2025 at 2:12pm · Author
+
+> I use the Libre 3 via Juggluco -> xDrip (Nightscout Follow) -> AAPS.
+> 
+> Here is an excerpt from the log (cut at the invokation of onReceive of the Data Receiver):
+> 
+> ```
+> 12:57:56.184 [main] D/CORE: [DataReceiver.onReceive():38]: onReceive com.eveningoutpost.dexdrip.BgEstimate Bundle{ com.eveningoutpost.dexdrip.Extras.NoiseBlockLevel => 200; com.eveningoutpost.dexdrip.Extras.BgSlope => 3.3557046979865773E-6; com.eveningoutpost.dexdrip.Extras.VersionInfo => 2124123110 8ed51e7-2024.12.31; com.eveningoutpost.dexdrip.Extras.Raw => 0.0; com.eveningoutpost.dexdrip.Extras.Display.Units => mg/dl; com.eveningoutpost.dexdrip.Extras.Time => 1735905473000; com.eveningoutpost.dexdrip.Extras.CalibrationInfo => -1; com.eveningoutpost.dexdrip.Extras.NsNoiseLevel => 1; com.eveningoutpost.dexdrip.Extras.SensorStartedAt => 1735856133660; com.eveningoutpost.dexdrip.Extras.Noise => 2.282510757446289; com.eveningoutpost.dexdrip.Extras.SensorBattery => -1; com.eveningoutpost.dexdrip.Extras.NoiseWarning => 0; com.eveningoutpost.dexdrip.Extras.BgSlopeName => Flat; com.eveningoutpost.dexdrip.Extras.BgEstimate => 110.0; com.eveningoutpost.dexdrip.Extras.SourceDesc => Nightscout; com.eveningoutpost.dexdrip.Extras.SourceInfo => Nightscout Follow; }Bundle
+> 12:57:56.267 [DefaultDispatcher-worker-6] D/BGSOURCE: [XdripSourcePlugin$XdripSourceWorker.doWorkAndLog():106]: Received xDrip data: Bundle[{com.eveningoutpost.dexdrip.Extras.NoiseBlockLevel=200, com.eveningoutpost.dexdrip.Extras.BgSlope=3.3557046979865773E-6, com.eveningoutpost.dexdrip.Extras.VersionInfo=2124123110 8ed51e7-2024.12.31, com.eveningoutpost.dexdrip.Extras.Raw=0.0, com.eveningoutpost.dexdrip.Extras.Display.Units=mg/dl, com.eveningoutpost.dexdrip.Extras.Time=1735905473000, com.eveningoutpost.dexdrip.Extras.CalibrationInfo=-1, com.eveningoutpost.dexdrip.Extras.NsNoiseLevel=1, com.eveningoutpost.dexdrip.Extras.SensorStartedAt=1735856133660, com.eveningoutpost.dexdrip.Extras.Noise=2.282510757446289, com.eveningoutpost.dexdrip.Extras.SensorBattery=-1, com.eveningoutpost.dexdrip.Extras.NoiseWarning=0, com.eveningoutpost.dexdrip.Extras.BgSlopeName=Flat, com.eveningoutpost.dexdrip.Extras.BgEstimate=110.0, com.eveningoutpost.dexdrip.Extras.SourceDesc=Nightscout, com.eveningoutpost.dexdrip.Extras.SourceInfo=Nightscout Follow}]
+> 12:57:56.286 [RxCachedThreadScheduler-156] D/DATABASE: [CompatDBHelper$dbChangeDisposable$2.accept():62]: Firing EventNewBG GlucoseValue(id=32222, version=0, dateCreated=1735905476272, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905473000, utcOffset=3600000, raw=0.0, value=110.0, trendArrow=FLAT, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 12:57:56.289 [RxCachedThreadScheduler-156] D/DATABASE: [CompatDBHelper$dbChangeDisposable$2.accept():67]: Firing EventNewHistoryData 1735905473000 GlucoseValue(id=32222, version=0, dateCreated=1735905476272, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905473000, utcOffset=3600000, raw=0.0, value=110.0, trendArrow=FLAT, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 12:57:56.292 [RxCachedThreadScheduler-156] D/DATABASE: [PersistenceLayerImpl$insertCgmSourceData$4.apply():586]: Inserted GlucoseValue from Xdrip GlucoseValue(id=32222, version=0, dateCreated=1735905476272, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905473000, utcOffset=3600000, raw=0.0, value=110.0, trendArrow=FLAT, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 12:57:56.296 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.plugins.source.XdripSourcePlugin$XdripSourceWorker Data {}
+> 12:57:56.346 [DefaultDispatcher-worker-1] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.plugins.sync.nsclientV3.workers.DataSyncWorker Data {}
+> 12:58:01.309 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.stopCalculation():47]: Stopping calculation thread: onEventNewHistoryData
+> 12:58:01.334 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.stopCalculation():52]: Calculation thread stopped: onEventNewHistoryData
+> 12:58:01.342 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.runCalculation():64]: Starting calculation worker: EventNewBG to 03.01.25 12:58:01
+> 12:58:01.510 [DefaultDispatcher-worker-2] D/CORE: [AutosensDataStoreObject.createBucketedDataRecalculated():239]: Adjusted time 03.01.25 12:57:53
+> 12:58:01.544 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.LoadBgDataWorker Data {}
+> 12:58:01.582 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBucketedDataWorker Data {}
+> 12:58:01.616 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBgDataWorker Data {}
+> 12:58:01.647 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateGraphWorker Data {}
+> 12:58:01.731 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareTreatmentsDataWorker Data {}
+> 12:58:02.715 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBasalDataWorker Data {}
+> 12:58:02.816 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareTemporaryTargetDataWorker Data {}
+> 12:58:02.835 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateGraphWorker Data {}
+> 12:58:03.007 [DefaultDispatcher-worker-1] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.iob.IobCobOref1Worker Data {}
+> 12:58:03.053 [DefaultDispatcher-worker-1] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateIobCobSensWorker Data {}
+> 12:58:03.698 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareIobAutosensGraphDataWorker Data {}
+> 12:58:03.721 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateGraphWorker Data {}
+> 12:58:03.735 [DefaultDispatcher-worker-5] D/APS: [LoopPlugin.invoke():239]: invoke from Calculation for InMemoryGlucoseValue(timestamp=1735905473000, value=110.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW)
+> 12:58:03.736 [DefaultDispatcher-worker-5] D/APS: [OpenAPSSMBPlugin.invoke():290]: invoke from Calculation for InMemoryGlucoseValue(timestamp=1735905473000, value=110.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) tempBasalFallback: false
+> 12:58:03.737 [DefaultDispatcher-worker-5] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735905173000, value=109.0, trendArrow=NONE, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=5 avgDelta=1.0
+> 12:58:03.737 [DefaultDispatcher-worker-5] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735904873000, value=105.0, trendArrow=NONE, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=10 avgDelta=2.5
+> 12:58:03.737 [DefaultDispatcher-worker-5] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735903073000, value=93.0, trendArrow=NONE, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=40 avgDelta=2.125
+> 12:58:03.737 [DefaultDispatcher-worker-5] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735900973000, value=93.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=75 avgDelta=1.1333333333333333
+> 12:58:03.738 [DefaultDispatcher-worker-5] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():264]: Glucose: 110 mg/dl Noise: 0 Delta: 1 mg/dlShort avg. delta: 1,75 mg/dl Long avg. delta: 2,12 mg/dl Dura ISF minutes: 10,00 m Dura ISF average: 108,00 mg/dl Parabola minutes: 0,00 m Parabola correlation: 0,00 Parabola fit a0: 0,00 mg/dl Parabola fit a1: 0,00 mg/dl/5m Parabola fit a2: 0,00 mg/dl/(5m)^2
+> 
+> 13:02:54.742 [main] D/CORE: [DataReceiver.onReceive():38]: onReceive com.eveningoutpost.dexdrip.BgEstimate Bundle{ com.eveningoutpost.dexdrip.Extras.NoiseBlockLevel => 200; com.eveningoutpost.dexdrip.Extras.BgSlope => 5.809128630705394E-5; com.eveningoutpost.dexdrip.Extras.VersionInfo => 2124123110 8ed51e7-2024.12.31; com.eveningoutpost.dexdrip.Extras.Raw => 0.0; com.eveningoutpost.dexdrip.Extras.Display.Units => mg/dl; com.eveningoutpost.dexdrip.Extras.Time => 1735905714000; com.eveningoutpost.dexdrip.Extras.CalibrationInfo => -1; com.eveningoutpost.dexdrip.Extras.NsNoiseLevel => 1; com.eveningoutpost.dexdrip.Extras.SensorStartedAt => 1735856133660; com.eveningoutpost.dexdrip.Extras.Noise => 5.0361328125; com.eveningoutpost.dexdrip.Extras.SensorBattery => -1; com.eveningoutpost.dexdrip.Extras.NoiseWarning => 0; com.eveningoutpost.dexdrip.Extras.BgSlopeName => SingleUp; com.eveningoutpost.dexdrip.Extras.BgEstimate => 124.0; com.eveningoutpost.dexdrip.Extras.SourceDesc => Nightscout; com.eveningoutpost.dexdrip.Extras.SourceInfo => Nightscout Follow; }Bundle
+> 13:02:54.904 [DefaultDispatcher-worker-5] D/BGSOURCE: [XdripSourcePlugin$XdripSourceWorker.doWorkAndLog():106]: Received xDrip data: Bundle[{com.eveningoutpost.dexdrip.Extras.NoiseBlockLevel=200, com.eveningoutpost.dexdrip.Extras.BgSlope=5.809128630705394E-5, com.eveningoutpost.dexdrip.Extras.VersionInfo=2124123110 8ed51e7-2024.12.31, com.eveningoutpost.dexdrip.Extras.Raw=0.0, com.eveningoutpost.dexdrip.Extras.Display.Units=mg/dl, com.eveningoutpost.dexdrip.Extras.Time=1735905714000, com.eveningoutpost.dexdrip.Extras.CalibrationInfo=-1, com.eveningoutpost.dexdrip.Extras.NsNoiseLevel=1, com.eveningoutpost.dexdrip.Extras.SensorStartedAt=1735856133660, com.eveningoutpost.dexdrip.Extras.Noise=5.0361328125, com.eveningoutpost.dexdrip.Extras.SensorBattery=-1, com.eveningoutpost.dexdrip.Extras.NoiseWarning=0, com.eveningoutpost.dexdrip.Extras.BgSlopeName=SingleUp, com.eveningoutpost.dexdrip.Extras.BgEstimate=124.0, com.eveningoutpost.dexdrip.Extras.SourceDesc=Nightscout, com.eveningoutpost.dexdrip.Extras.SourceInfo=Nightscout Follow}]
+> 13:02:54.988 [RxCachedThreadScheduler-162] D/DATABASE: [CompatDBHelper$dbChangeDisposable$2.accept():62]: Firing EventNewBG GlucoseValue(id=32223, version=0, dateCreated=1735905774948, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905714000, utcOffset=3600000, raw=0.0, value=124.0, trendArrow=SINGLE_UP, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 13:02:54.990 [RxCachedThreadScheduler-162] D/DATABASE: [CompatDBHelper$dbChangeDisposable$2.accept():67]: Firing EventNewHistoryData 1735905714000 GlucoseValue(id=32223, version=0, dateCreated=1735905774948, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905714000, utcOffset=3600000, raw=0.0, value=124.0, trendArrow=SINGLE_UP, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 13:02:54.993 [RxCachedThreadScheduler-162] D/DATABASE: [PersistenceLayerImpl$insertCgmSourceData$4.apply():586]: Inserted GlucoseValue from Xdrip GlucoseValue(id=32223, version=0, dateCreated=1735905774948, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1735905714000, utcOffset=3600000, raw=0.0, value=124.0, trendArrow=SINGLE_UP, noise=null, sourceSensor=LIBRE_3_FOLLOW)
+> 13:02:55.006 [DefaultDispatcher-worker-5] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.plugins.source.XdripSourcePlugin$XdripSourceWorker Data {}
+> 13:02:55.143 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.plugins.sync.nsclientV3.workers.DataSyncWorker Data {}
+> 13:03:00.030 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.stopCalculation():47]: Stopping calculation thread: onEventNewHistoryData
+> 13:03:00.052 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.stopCalculation():52]: Calculation thread stopped: onEventNewHistoryData
+> 13:03:00.067 [pool-10-thread-1] D/WORKER: [CalculationWorkflowImpl.runCalculation():64]: Starting calculation worker: EventNewBG to 03.01.25 13:03:00
+> 13:03:00.312 [DefaultDispatcher-worker-5] D/CORE: [AutosensDataStoreObject.createBucketedDataRecalculated():239]: Adjusted time 03.01.25 13:01:54
+> 13:03:00.360 [DefaultDispatcher-worker-5] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.LoadBgDataWorker Data {}
+> 13:03:00.425 [DefaultDispatcher-worker-5] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBucketedDataWorker Data {}
+> 13:03:00.502 [DefaultDispatcher-worker-5] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBgDataWorker Data {}
+> 13:03:00.559 [DefaultDispatcher-worker-5] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateGraphWorker Data {}
+> 13:03:00.718 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareTreatmentsDataWorker Data {}
+> 13:03:02.545 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareBasalDataWorker Data {}
+> 13:03:02.795 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.PrepareTemporaryTargetDataWorker Data {}
+> 13:03:02.854 [DefaultDispatcher-worker-6] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateGraphWorker Data {}
+> 13:03:03.493 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.iob.IobCobOref1Worker Data {}
+> 13:03:03.537 [DefaultDispatcher-worker-2] D/WORKER: [LoggingWorker$doWork$2.invokeSuspend():27]: Worker result SUCCESS for class app.aaps.workflow.UpdateIobCobSensWorker Data {}
+> 13:03:04.511 [RxCachedThreadScheduler-75] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735903314000, value=95.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=40 avgDelta=3.625
+> 13:03:04.512 [RxCachedThreadScheduler-51] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735903314000, value=95.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=40 avgDelta=3.625
+> 13:03:04.514 [RxCachedThreadScheduler-75] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735901214000, value=92.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=75 avgDelta=2.1333333333333333
+> 13:03:04.514 [RxCachedThreadScheduler-51] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():79]: InMemoryGlucoseValue(timestamp=1735901214000, value=92.0, trendArrow=FLAT, smoothed=null, filledGap=false, sourceSensor=LIBRE_3_FOLLOW) minutesAgo=75 avgDelta=2.1333333333333333
+> 13:03:04.516 [RxCachedThreadScheduler-75] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():264]: Glucose: 124 mg/dl Noise: 0 Delta: 0 mg/dlShort avg. delta: 0,00 mg/dl Long avg. delta: 3,62 mg/dl Dura ISF minutes: 0,00 m Dura ISF average: 124,00 mg/dl Parabola minutes: 0,00 m Parabola correlation: 0,00 Parabola fit a0: 0,00 mg/dl Parabola fit a1: 0,00 mg/dl/5m Parabola fit a2: 0,00 mg/dl/(5m)^2
+> 13:03:04.516 [RxCachedThreadScheduler-51] D/GLUCOSE: [GlucoseStatusProviderImpl.getGlucoseStatusData():264]: Glucose: 124 mg/dl Noise: 0 Delta: 0 mg/dlShort avg. delta: 0,00 mg/dl Long avg. delta: 3,62 mg/dl Dura ISF minutes: 0,00 m Dura ISF average: 124,00 mg/dl Parabola minutes: 0,00 m Parabola correlation: 0,00 Parabola fit a0: 0,00 mg/dl Parabola fit a1: 0,00 mg/dl/5m Parabola fit a2: 0,00 mg/dl/(5m)^2
+> ```
+
+**@MilosKozak** commented · Jan 3, 2025 at 3:16pm
+
+> this is not easy to find from logs
+> if the problem can be observed in AAPS Client you can PM me NS credentials
+
+**MilosKozak** added label `question - more info needed` · Jan 6, 2025 at 7:09pm
+
+**@boris803** commented · Jan 8, 2025 at 7:56am
+
+> I have exactly the same error, but with a slightly different setup.
+> 
+> FSL3 via Juggluco --> xDrip (Source: Libre patched) --> AAPS
+> I've also testet FSL3 via Juggluco --> AAPS --> xDrip (for alerting) with the same results. 
+> (I've checked the setups several times, but I cannot find any misconfigurations)
+> 
+> Since we have another family member with diabetes, I can inform that the delta ("0") issue doesn't exist with G7 via BYODA --> xDrip --> AAPS.
+> 
+> Best regards
+> Boris
+
+**@olorinmaia** commented · Jan 8, 2025 at 11:39am · edited
+
+> It happend to our setup but only for a few readings. Seems like delta is not calculated when a new sensor is started with different time interval on BG arrival than previous sensor. I sent Milos screens and logs on discord.
+> 
+> After a few readings delta is calculated and again and hasn't occurred again during this sensor session.
+> 
+> Setup is G7 and direct connection via xDrip+
+
+**@sanderrenes** commented · Jan 10, 2025 at 10:38am
+
+> I have the same issue with 3.3.0.
+> Using libre2, Xdrip+ and oop2
+> 
+> The delta is not always 0, but it is wrong. The 5 minutes delta and 15 minutes delta appear to be the same always and the 40 minute delta is some other number. The strangest thing is that the arrow does seem to agree with Xdrip measurements.
+> 
+> I tried installing Juggluco next to Xdrip to see if that helped. It did not.
+> 
+> since AAPS started intervening based on the incorrect deltas, I had to downgrade again.
+
+**@painbrain81** commented · Jan 11, 2025 at 10:13pm
+
+> same problem here (pic is from client but master is the same)
+> the previuos value is 7 minutes ago. maybe the calculation of deltas is bugged when is out of "standard" 5 minutes?
+> 
+> config: 3.3.1.0 + xdrip + oop2 (libre2+omnipod)
+> [Image: photo_5771858987359258618_y | https://github.com/user-attachments/assets/d1b2c19b-cb48-403b-90cc-91fdf2f9b4ab]
+
+**@MilosKozak** commented · Jan 13, 2025 at 4:49pm
+
+> someone affected: give me credentials to setup AAPSClient with the bug
+
+**@bamloeff** commented · Jan 19, 2025 at 1:30pm
+
+> Warning: due to this issue Automations that make use of delta's as conditions will not work as expected.
+
+**@bamloeff** commented · Jan 19, 2025 at 2:14pm
+
+> @MilosKozak I'm experiencing this issue too. I'm currently on AAPS v3.3.1.0, FSL2 with Xdrip/OOP2, Dana-i and Nightscout v3. What exactly do you need to set up your test?
+
+**@BIO-DISASTER** commented · Jan 19, 2025 at 4:28pm
+
+> I'm also have this issue, with AAPS 3.3.1.0 - FSL2 - Xdrip - Juggluco or OOP2. One thing I noticed is that if I scan FSL2 with NFC in Xdrip, Delta is doing something.
+
+**@bamloeff** commented · Jan 26, 2025 at 10:15am · edited
+
+> Could it be this has something to do with the recalculations AAPS frequently does on FSL2 values? Can't really support this with data, but I noticed there are a lot of open/transparent dots in my BG graph since version 3.3. I suppose this points at recalculated BG's, can't find that in the docs though. I suspect that when such a recalculated BG value occurs the delta's may not be calculated correctly.
+
+**@BIO-DISASTER** commented · Jan 26, 2025 at 7:21pm
+
+> > I'm also have this issue, with AAPS 3.3.1.0 - FSL2 - Xdrip - Juggluco or OOP2. One thing I noticed is that if I scan FSL2 with NFC in Xdrip, Delta is doing something.
+> 
+> I would like to add that I left Xdrip out and sticked with only FSL2 - Juggluco - AAPS and the delta values are coming through just as you would expect. So I still think the issue is somehow Xdrip related and not so much linked to the FSL2 specific
+
+**@sanderrenes** commented · Jan 27, 2025 at 5:23am
+
+> > I would like to add that I left Xdrip out and sticked with only FSL2 - Juggluco - AAPS and the delta values are coming through just as you would expect. So I still think the issue is somehow Xdrip related and not so much linked to the FSL2 specific
+> 
+> Wait, if you run juggluco without xdrip, you get deltas. Are they the correct deltas?
+
+**@MilosKozak** commented · Jan 27, 2025 at 8:50am
+
+> repeating: if you can replicate it in AAPSClient I can have a look
+
+**@bamloeff** commented · Jan 27, 2025 at 9:48am
+
+> I'm not using AAPSclient myself but I suppose if I share NS credentials with you you will be able to see my data in AAPSclient? Will a "readable" token do in this case?
+
+**@sanderrenes** commented · Jan 27, 2025 at 10:15am
+
+> > repeating: if you can replicate it in AAPSClient I can have a look
+> 
+> I send you Nightscout details via Facebook DM, did that work?
+> 
+> I'm currently on 3.3.1.0, when I send you the link I was on 3.3.1.3. Both have the same error
+
+**@MilosKozak** commented · Jan 27, 2025 at 2:20pm · edited
+
+> i need admin token to be able connect via AAPSClient
+> try it first yourself to be sure the issue is replicable there
+
+**@sanderrenes** commented · Jan 28, 2025 at 1:36pm
+
+> > i need admin token to be able connect via AAPSClient try it first yourself to be sure the issue is replicable there
+> 
+> It replicates in AAPSClient. 
+> I can send you the NightScout details, where do you want them?
+
+**@sanderrenes** commented · Feb 2, 2025 at 12:14pm · edited
+
+> > > I would like to add that I left Xdrip out and sticked with only FSL2 - Juggluco - AAPS and the delta values are coming through just as you would expect. So I still think the issue is somehow Xdrip related and not so much linked to the FSL2 specific
+> > 
+> > Wait, if you run juggluco without xdrip, you get deltas. Are they the correct deltas?
+> 
+> I tried this with my new sensor (fsl2). I removed xdrip from phone, started with just juggluco and aaps (3.3.1.0). This seems to give correct deltas.
+> Aaps warns it uses recalculated glucose values (yellow / orange triangle top left of glucose value), but that is normal for fsl2
+> 
+> If you try this, don't forget to tell aaps to upload your glucose to NS instead of xdrip
+> 
+> Current setup fsl2 (eu) - - > juggluco - - > aaps 3.3.1.0
+> 
+> edit: updated to 3.3.1.3, same results
+
+**@bamloeff** commented · Feb 2, 2025 at 3:35pm · edited
+
+> > > > I would like to add that I left Xdrip out and sticked with only FSL2 - Juggluco - AAPS and the delta values are coming through just as you would expect. So I still think the issue is somehow Xdrip related and not so much linked to the FSL2 specific
+> > > 
+> > > 
+> > > Wait, if you run juggluco without xdrip, you get deltas. Are they the correct deltas?
+> > 
+> > I tried this with my new sensor (fsl2). I removed xdrip from phone, started with just juggluco and aaps (3.3.1.0). This seems to give correct deltas. Aaps warns it uses recalculated glucose values (yellow / orange triangle top left of glucose value), but that is normal for fsl2
+> > 
+> > If you try this, don't forget to tell aaps to upload your glucose to NS instead of xdrip
+> > 
+> > Current setup fsl2 (eu) - - > juggluco - - > aaps 3.3.1.0
+> 
+> But if you let FSL2 values come in directly through Juggluco they will be updated every minute, isn't it? What will this do to the closed loop? There also a second route: sending FSL2 values from Juggluco to Xdrip and then to AAPS. This will make values come in every 5 minutes and will enable smoothing in Xdrip. But will it also solve the delta's problem?
+
+**@sanderrenes** commented · Feb 2, 2025 at 4:55pm · edited
+
+> > > > >
+> 
+> SHORTENED FOR CLARITY
+> 
+> > But if you let FSL2 values come in directly through Juggluco they will be updated every minute, isn't it? What will this do to the closed loop? There also a second route: sending FSL2 values from Juggluco to Xdrip and then to AAPS. This will make values come in every 5 minutes and will enable smoothing in Xdrip. But will it also solve the delta's problem?
+> 
+> I tried to get them send through xdrip, did not get it to work properly. I have not used juggluco before, so might have messed that up.
+> 
+> Right now it updates every minute. The deltas are recalculated to cover the right period, so they are in the range of values you would expect.
+> 
+> My loop seems to respond normally, in the sense that i did not see much of a change relative to just before deinstalling xdrip. 
+> It might be responding more often, but not fundamentally different by the looks of it.
+> 
+> EDIT
+> not sure i checked enough the last time. After several days of use i noticed that several things are odd. The arrow seems to depend on the 40 min delta, not the short ones.
+> The 15 minute delta is the same as the 5 minute, always. The 5 min seems correct (so 15 is wrong)
+> So still not a full solution.
+
+**@Jan1758** commented · Apr 5, 2025 at 10:20am · edited
+
+> Configuration
+> AAPS 3.3.2.0 
+> FSL2
+> Accu-Chek Insight
+> DIABOX
+> NO APP XDRIP
+> NO NIGHTSCOUT
+> 
+> I have the same problem. The delta values ​​do not match the table of glucose values.
+> 
+> **I also notice that the graph of glucose (sometimes?) is based on the incorrect delta values. See the attached screenshots.**
+> 
+> [Image: Image | https://github.com/user-attachments/assets/3f2de65a-0300-4dd9-be74-303c64f5554e]
+> [Image: Image | https://github.com/user-attachments/assets/ae7ed905-44bc-46a3-b130-233ca74bf176]
+> [Image: Image | https://github.com/user-attachments/assets/40b2e6d4-5ded-449b-b393-34add6e03963]
+> [Image: Image | https://github.com/user-attachments/assets/6c3cd49b-48b5-42a4-a6ac-83e9136e8161]
+> 
+> I am concerned that other calculations also use the incorrect delta values. For example, the required carbohydrates calculated by AAPS, in the event of an approaching hypo, are (sometimes?) unrealistically high. Unfortunately, I do not have any screenshots of that.
+> 
+> Please, let me know if and how I can help resolve this issue.
+> 
+> Jan van den Berg
+
+**@MilosKozak** commented · Apr 5, 2025 at 4:54pm
+
+> Provide logs if you need help
+
+**sanderrenes** mentioned this in issue [#3933: Delta calculations needs clean up](https://github.com/nightscout/AndroidAPS/issues/3933) · Apr 5, 2025 at 7:42pm
+
+**@sanderrenes** commented · Apr 5, 2025 at 7:54pm · edited
+
+> EDIT: logs and link to other issue
+> 
+> uploaded logs here:
+> https://filesender.surf.nl/?s=download&token=114cc1a6-7afb-4def-bf15-a17a1420cac7
+> 
+> link works till 06-05 (6th of May)
+> 
+> I can also give you nightscout credentials if that helps.
+> 
+> I also just opened another issue about the [calculations of the deltas.](https://github.com/nightscout/AndroidAPS/issues/3933)
+> There are some odd things in the math.
+> If you, or anyone, is working on them, please check those out too.
+> 
+> Op za 5 apr 2025 18:54 schreef Milos Kozak ***@***.***>:
+> 
+> > Provide logs if you need help
+> > 
+> > —
+> > Reply to this email directly, view it on GitHub
+> >,
+> > or unsubscribe
+> > 
+> > .
+> > You are receiving this because you commented.Message ID:
+> > ***@***.***>
+> > [image: MilosKozak]*MilosKozak* left a comment
+> > (nightscout/AndroidAPS#3688)
+> > 
+> > 
+> > Provide logs if you need help
+> > 
+> > —
+> > Reply to this email directly, view it on GitHub
+> >,
+> > or unsubscribe
+> > 
+> > .
+> > You are receiving this because you commented.Message ID:
+> > ***@***.***>
+
+**@Jan1758** commented · Apr 6, 2025 at 7:36am
+
+> [AndroidAPS_LOG_1743920220258_log.zip](https://github.com/user-attachments/files/19620212/AndroidAPS_LOG_1743920220258_log.zip)
+> 
+> A first log. Usable?
+> 
+> Jan
+
+**@MilosKozak** commented · Apr 6, 2025 at 9:29am
+
+> @sanderrenes @Jan1758 
+> sorry,
+> I need screenshots and logs from the same time
+
+**@sanderrenes** commented · Apr 6, 2025 at 11:21am
+
+> > [@sanderrenes](https://github.com/sanderrenes) [@Jan1758](https://github.com/Jan1758) sorry, I need screenshots and logs from the same time
+> 
+> Here you go:
+> 
+> https://filesender.surf.nl/?s=download&token=3ae368e9-89ea-4e8c-a8e6-a06aa8349e64
+> 
+> three screenshots over the last 10 minutes and the live log file as of now
+
+**@MilosKozak** commented · Apr 6, 2025 at 2:57pm
+
+> @sanderrenes you are using 3 min interval which makes everything way more complicated (except it's not recommended and contraproductive)
+> setup 5 min and test again
+
+**@Jan1758** commented · Apr 6, 2025 at 5:31pm
+
+> I changed the setup in Diabox in 5 minuten. Half an hour later I've made the sreenshots and logfile within 1 minute.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/8f215c81-c704-40c6-b75b-97b98e117cc6]
+> [Image: Image | https://github.com/user-attachments/assets/cc5c37d8-615e-467a-ac54-8d6c25354403]
+> 
+> [DOC-20250406-WA0003.zip](https://github.com/user-attachments/files/19622586/DOC-20250406-WA0003.zip)
+
+**@MilosKozak** commented · Apr 8, 2025 at 5:58am
+
+> did you wait at least 36h?
+
+**@sanderrenes** commented · Apr 8, 2025 at 6:21am
+
+> @Jan1758 said half an hour later, so i guess not.
+> 
+> I've reinstalled xdrip, checked settings etc. Now on 6 minute interval, so far same picture as Jan. Short Deltas are both zero.
+> 
+> Ill wait till the 36h are up and make logs
+
+**@Jan1758** commented · Apr 8, 2025 at 6:31am
+
+> @MilosKozak @sanderrenes No, this morning I see the effects in Diabox. Measurements with an interval > 5 minutes. I see no effects in AAPS. I will send new logs and screenshots today.
+
+**@Jan1758** commented · Apr 8, 2025 at 6:54am · edited
+
+> @MilosKozak @sanderrenes I see that the Arrows do not match my expectations. See screenshot. Between the upper 2 measurements is a delta of 2.0. The arrow is single. I suppose it should be double. 
+> I see more "wrong" arrows in this screenshot. (In the docs I could not find the exact zones of the arrows. Sorry.)
+> 
+> Later on I will send more.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/b98bff20-72cd-44cc-b0cc-ac195ce962ab]
+
+**@Jan1758** commented · Apr 8, 2025 at 8:21am · edited
+
+> New screenshots and logs. 
+> 1 delta's do not match with the table
+> 2 graph nearby horizontal where I expect an arc because of measurements 
+> 3 some arrows in the table are wrong.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/e1591bbd-6f11-43b8-babb-6f6f7eb0b12f]
+> [Image: Image | https://github.com/user-attachments/assets/c3e2a79c-195f-4de1-8b62-fc9e56a35a1f]
+> [Image: Image | https://github.com/user-attachments/assets/2af3d7af-8ea6-4780-8dda-e5185fd8e26a]
+> [Image: Image | https://github.com/user-attachments/assets/6d3c3554-5d63-48d2-a477-fd274c0a06bb]
+> [Image: Image | https://github.com/user-attachments/assets/c79b2849-a954-455c-912c-55a7c0cd84c9]
+> 
+> [AndroidAPS_LOG_1744093447481.log.zip](https://github.com/user-attachments/files/19646808/AndroidAPS_LOG_1744093447481.log.zip)
+> [AndroidAPS_LOG_1744093954442.log.zip](https://github.com/user-attachments/files/19646809/AndroidAPS_LOG_1744093954442.log.zip)
+> 
+> Every screenshot of a graph are connected to 1 or 2 screenshots of the table and log taken on the same moment.
+
+**@sanderrenes** commented · Apr 8, 2025 at 6:36pm · edited
+
+> @Jan1758
+> EDITS: added figure of table instead of unreadable HTML
+> 
+> > " (In the docs I could not find the exact zones of the arrows. Sorry.)"
+> 
+> I found them in the code while I was looking for the delta calculations in the file TrendCalculatorImpl.kt:
+> 
+> ```
+> return when {
+> slopeByMinute <= -3.5 -> TrendArrow.DOUBLE_DOWN
+> slopeByMinute <= -2 -> TrendArrow.SINGLE_DOWN
+> slopeByMinute <= -1 -> TrendArrow.FORTY_FIVE_DOWN
+> slopeByMinute <= 1 -> TrendArrow.FLAT
+> slopeByMinute <= 2 -> TrendArrow.FORTY_FIVE_UP
+> slopeByMinute <= 3.5 -> TrendArrow.SINGLE_UP
+> slopeByMinute <= 40 -> TrendArrow.DOUBLE_UP
+> else -> TrendArrow.NONE
+> }
+> ```
+> 
+> This is per minute, the delta we usaly see is per 5 minutes. Also, I think this is the US measures (mg/dl) not mmol/l that we use in Europe (divide by 18 multiply by 5 to translate), so the lower and upper bounds, in 5 minute average change:
+> 
+> [Image: Image | https://github.com/user-attachments/assets/bddcd274-cc9a-49e9-a868-f8f1212e9e94]
+
+**@MilosKozak** commented · Apr 8, 2025 at 8:21pm
+
+> well 6 min is even worse ..... can you set it to 5 min?
+
+**@MilosKozak** commented · Apr 8, 2025 at 8:23pm
+
+> displayed arrrows are exactly how received from xdrip
+> 
+> ```
+> 08:31:25.365 [RxCachedThreadScheduler-2422] D/DATABASE: [PersistenceLayerImpl$insertCgmSourceData$4.apply():587]: Inserted GlucoseValue from Xdrip GlucoseValue(id=26488, version=0, dateCreated=1744093885353, isValid=true, referenceId=null, interfaceIDs_backing=InterfaceIDs(nightscoutSystemId=null, nightscoutId=null, pumpType=null, pumpSerial=null, temporaryId=null, pumpId=null, startId=null, endId=null), timestamp=1744093877047, utcOffset=7200000, raw=0.0, value=171.0, trendArrow=SINGLE_UP, noise=null, sourceSensor=UNKNOWN)
+> ```
+
+**@Jan1758** commented · Apr 9, 2025 at 6:24am
+
+> > EDITS: added figure of table instead of unreadable HTML
+> 
+> @sanderrenes This is adressed to Milos?
+> 
+> The arrows are not the main problem. I do not use Xdrip+. In AAPS a plugin named Xdrip imports the data from Diabox. Today I will compare the data from Diabox and AAPS.
+> 
+> Let's focus on the faulty calculations
+
+**@Jan1758** commented · Apr 9, 2025 at 7:39am · edited
+
+> @MilosKozak @sanderrenes
+> 
+> > well 6 min is even worse ..... can you set it to 5 min?
+> 
+> Diabox (with FSL2) has two possibilities: 5 minutes on or off . Finetuning is not possible. 
+> 5 minutes off: short deltas in AAPS not always zero.
+> 5 minutes on: short deltas in AAPS always zero.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/e0443958-b7aa-43c4-978e-0945ba7132c4]
+
+**@MilosKozak** commented · Apr 9, 2025 at 7:42am
+
+> set 5 min, wait 2 days, then provide screenshots and logs
+
+**@Jan1758** commented · Apr 9, 2025 at 7:58am
+
+> @MilosKozak 
+> In my contribution of yesterday 8th Diabox was set to 5 minutes two days before. Meets your requirements. 
+> You want me to send more/new/other info? 
+> You have located the problem?
+
+**@MilosKozak** commented · Apr 9, 2025 at 8:09am
+
+> the distance is 6 min, check the screenshot
+
+**@Jan1758** commented · Apr 9, 2025 at 8:20am
+
+> Not possible to finetune Diabox. It is 5 minutes on or off.
+
+**@bamloeff** commented · Apr 9, 2025 at 8:58am
+
+> That's what I see also when using Xdrip direct mode (OOP2) with FSL2: updates every 6 minutes. Can't be changed in Xdrip. Looks like AAPS is doing a lot of recalculations (transparent dots in the main graph).
+> 
+> [Image: Image | https://github.com/user-attachments/assets/5921106b-78e0-44ca-80ce-028734601250]
+
+**@sanderrenes** commented · Apr 9, 2025 at 9:20am · edited
+
+> There appears to be a 2-minute interval for the data collection in Juggluco in my case. If Juggluco only gets 2-minute data, it would be impossible to get a 5-minute interval without recalculations. It would be 2, 4, or 6 minutes, and all of our apps seem to go for the 6-minute version. 
+> Neither Juggluco, nor Xdrip allows me to set an interval in any other interval.
+> 
+> What I don't get is that the FSL2 sensor, according to the producers, captures data every minute and submits this to the app. 
+> https://www.abbott.com/corpnewsroom/diabetes-care/how-sensors-and-insulin-pumps-connect-diabetes-care.html
+> 
+> I have changed my setup to 2-minute data (juggluco measures straight to AAPS) AND removed the check for recalculated data in the if condition that calculates the deltas ( removed it from the source code and rebuilt the last master branch).
+> Now I get deltas that are not zero, but as before, the 5 and 15-minute deltas are the same. 
+> As I only did this about 2 hours ago, I'll leave it running a bit longer
+
+**@Jan1758** commented · Apr 9, 2025 at 9:48am
+
+> I notice that the arrows in Diabox and in AAPS are not always the same. Diabox calculates a 2-minutes interval. Sometimes the 2-minutes in Diabox differ from a 5- or 6-minutes interval in AAPS. I only use Diabox and AAPS. I agree with @sanderrenes and @bamloeff that there are a lot of recalculations in AAPS.
+> 
+> I noticed also that the 2 minutes interval results in several deltas not zero on the screen and the "5"-minutes interval only zeros.
+> 
+> What are the consequences in AAPS?
+
+**@Jan1758** commented · Apr 9, 2025 at 9:58am
+
+> > [@Jan1758](https://github.com/Jan1758) EDITS: added figure of table instead of unreadable HTML
+> > 
+> > > " (In the docs I could not find the exact zones of the arrows. Sorry.)"
+> > 
+> > I found them in the code while I was looking for the delta calculations in the file TrendCalculatorImpl.kt:
+> > 
+> > ```
+> > return when {
+> > slopeByMinute <= -3.5 -> TrendArrow.DOUBLE_DOWN
+> > slopeByMinute <= -2 -> TrendArrow.SINGLE_DOWN
+> > slopeByMinute <= -1 -> TrendArrow.FORTY_FIVE_DOWN
+> > slopeByMinute <= 1 -> TrendArrow.FLAT
+> > slopeByMinute <= 2 -> TrendArrow.FORTY_FIVE_UP
+> > slopeByMinute <= 3.5 -> TrendArrow.SINGLE_UP
+> > slopeByMinute <= 40 -> TrendArrow.DOUBLE_UP
+> > else -> TrendArrow.NONE
+> > }
+> > ```
+> > 
+> > This is per minute, the delta we usaly see is per 5 minutes. Also, I think this is the US measures (mg/dl) not mmol/l that we use in Europe (divide by 18 multiply by 5 to translate), so the lower and upper bounds, in 5 minute average change:
+> > 
+> > [Image: Image | https://github.com/user-attachments/assets/bddcd274-cc9a-49e9-a868-f8f1212e9e94]
+> 
+> I suppose "40" has to be "4.0"?
+
+**@Jan1758** commented · Apr 10, 2025 at 7:43am · edited
+
+> @MilosKozak @sanderrenes @bamloeff 
+> This morning I foresaw I'm going low. But AAPS did not give me an advise. Why? I suppose because the deltas are zero and the graph is horizontal.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/9ae3db2c-2185-4e71-afbb-ef9fed671f8d]
+> [Image: Image | https://github.com/user-attachments/assets/664ee564-5431-4840-94e0-a892c1fc94f2]
+> [Image: Image | https://github.com/user-attachments/assets/3e0e625a-daa2-418b-8c53-3e14ac63a9dd]
+> 
+> Next measurement. Surprise. A caculated delta! -0,8.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/74a10989-7a45-4ea9-9c53-cb073a8e0b07]
+> [Image: Image | https://github.com/user-attachments/assets/c0466137-3655-4cc0-82d8-8100f838f32c]
+> 
+> The faulty calculaties also effects crucial funtions in AAPS.
+> 
+> [AndroidAPS_LOG_1744269388170.log.zip](https://github.com/user-attachments/files/19680170/AndroidAPS_LOG_1744269388170.log.zip)
+> [AndroidAPS_LOG_1744269889597.log.zip](https://github.com/user-attachments/files/19680171/AndroidAPS_LOG_1744269889597.log.zip)
+
+**@bamloeff** commented · Apr 10, 2025 at 9:40am
+
+> @Jan1758 As I told you a couple of times already as far as I can see our loops are working as they should. I have been looping for over 3 years now and since this issue turned up I see no decrease in performance. Only the delta's are not shown correctly on the screen and automations that use delta's as a condition do not work properly .
+> 
+> So please don't panic, there is absolutely no reason for that.
+
+**@olorinmaia** commented · Apr 10, 2025 at 10:45am
+
+> I wouldn't recommend automations for alerting soon low etc. xDrip or other apps are more suitable for that imo.
+
+**@Jan1758** commented · Apr 10, 2025 at 4:42pm
+
+> @bamloeff
+> 
+> > As I told you a couple of times already as far as I can see our loops are working as they should.
+> 
+> Bart,
+> 
+> Thanks for your concern, but that is not necessary. I know from experience that quality benefits from good feedback. As long as the cause of this problem has not been found, I will report everything that I notice that could be related to this. I do not want to suffer from tunnelvision because everything(?) would work fine. Be more (constructively) critical. Moreover, we are responsible for the app we use. That is why I want to be able to make my contribution if I see that something in the app is not going well.
+> 
+> v.g. Jan
+
+**@sanderrenes** commented · Apr 10, 2025 at 5:33pm
+
+> Jan, Bart en Milos,
+> 
+> Goed nieuws,
+> There is progress
+> 
+> [Image: Image | https://github.com/user-attachments/assets/8e305700-0b05-4d91-a868-d62060c26e2f]
+> 
+> I'll push these changes to my branch on github, so you can see what i did. It's in one line of code, an if statement.
+> 
+> Ill fill out the details from the pc
+> 
+> Met vriendelijke groet / regards
+> Sander
+
+**@sanderrenes** commented · Apr 10, 2025 at 6:07pm · edited
+
+> The details:
+> 
+> https://github.com/sanderrenes/AndroidAPS/commit/dfbe47925c8c9d345d884f488c70e24e8c4efb2a
+> 
+> I changed the if statements on line 71 to exclude the filtering on recalculation. Not sure why it is recalculated data, but I suspect the smoothing that is done on fsl2 data, or the difference in measurement interval is causing the issue in one-or-the-other of our apps.
+> 
+> With this change, I have better-looking deltas on my FSL2 with juggluco. I did some spot checking to check the calculatiins by hand, this solves the problem for me.
+> 
+> So, if you have this error with fsl2, consider changing the if statement (and commit the changes in git and rebuild). 
+> I hope weet can remove this extra step in later updates
+
+**@Jan1758** commented · May 22, 2025 at 5:36pm
+
+> @MilosKozak Has there been any progress on this issue? Has @sanderrenes perhaps found the solution or do you still need more info?
+
+**@sanderrenes** commented · May 23, 2025 at 1:01pm · edited
+
+> Edits: libre3 was added, since Boris mentions same issue with fsl3
+> 
+> @Jan1758 thanks for the reminder, I wanted to check some things.
+> The statement that is causing problems was introduced with version 3.3.0
+> 
+> in 3.2.0.4 the relevant bit of code is:
+> if (data[i].recalculated > 38) {
+> ...
+> change = now.recalculated - then.recalculated
+> val avgDel = change / minutesAgo * 5
+> 
+> and in 3.3.0 this becomes:
+> if (data[i].value > 39 && !data[i].filledGap) { // if (data[i].recalculated > 38) {
+> ....
+> change = now.recalculated - then.recalculated
+> val avgDel = change / minutesAgo * 5
+> 
+> The release notes did not make clear to me why the extra condition was added (or why the check move to value instead of recalculated)
+> 
+> I then tried to find the filledGap variable, but got a bit stuck. It appears to be set deep in the code, I can follow it back till "inMemoryGlucoseValue.kt" where I also found this comment:
+> 
+> /**
+> * Simplified [app.aaps.core.data.model.GV] for storing in memory and calculations
+> * It may correspond to GlucoseValue value in db
+> * but because of 5 min recalculations and smoothing it may not
+> */
+> 
+> That seems to be our issue. Since my FSL2 reports on a 2-minute interval, there is never a measure exactly 5 minutes ago. To get a 5-minute measure, you have to fill the gap between 4 and 6 minutes by definition. 
+> This 2 minute interval appears particular to this sensor.
+> 
+> So, is this what causes your error? if you have FSL2 - EU version like me, then very likely.
+> Can you solve it?
+> yes, either make the same adjustment as I did in your own fork, or use my fork (i am still running on it, works fine with me)
+> 
+> Can we solve it for everyone? 
+> That is harder. It seems it is particular to fsl sensors. I don't know why this if-condition was added, but if it is for safety reasons, it might not be wise to bluntly remove it for everyone. We could work around it, for instance with an if condition that says something along the lines:
+> 
+> if (data[i].value > 39 && (!data[i].filledGap || SourceSensor=="Libre2" || SourceSensor=="Libre3"))
+> 
+> but that makes the code a lot harder to read, and I'm not sure it is all that clear why this would be necessary to have. So for maintainability of the code that is not nice. 
+> This last part can be fixed by adding comments like the one about the recalculations, if that is ok with the core devs like @MilosKozak
+
+**@Jan1758** commented · May 23, 2025 at 7:36pm
+
+> @sanderrenes
+> 
+> Dank voor het antwoord. Het lijkt er op dat je de kern van het probleem gevonden hebt. Ik kan niet zo goed overzien of dit issue invloed heeft op de (goede) werking van AAPS. Als de input niet steeds correct is dan lijkt het mij logisch dat de werking van AAPS ook niet altijd correct is. Het is mij ook niet helemaal duidelijk of het AAPS-team dit issue eventueel met jouw oplossing heeft opgepakt zodat binnenkort iedere (FSL-) gebruiker profijt heeft van dit opgeloste issue. Ik ben onvoldoende bekend met programmeren om eigenhandig aanpassingen te doen in de broncode en ben dus afhankelijk van een nieuwe officiële versie van AAPS.
+> 
+> Binnenkort ga ik de One+ uitproberen. Ik heb er 2 gekregen van mijn dvpl. Ik ga dat doen met Juggluco in plaats van met Diabox. Een van mijn aandachtspunten is het bg-verschil in AAPS. Eerst maar eens zien of ik die configuratie aan de praat krijg. Ik zal je mijn ervaringen laten weten.
+> 
+> Jan
+
+**@Jan1758** commented · Jun 1, 2025 at 6:20pm
+
+> @sanderrenes
+> 
+> I've done the following by now. 
+> First, I replaced Diabox with Juggluco. That went smoothly. I notice that with Juggluco the Bluetooth connection is more stable. There are almost no gaps in the BG data series. 
+> A few days later I replaced FSL2 with One+. This also went smoothly. One of the differences between FSL2 and One+ is the interval. In theory, FSL2 has a measurement every minute and One+ every 5 minutes. Furthermore, it is striking that a continuous and streamlined curve of BG's is now emerging in AAPS. And AAPS is more stable. No more "incomprehensible" actions in the form of "unwanted" boluses.
+> 
+> Back to the issue. The attached screenshot shows that the 3 lines with the deltas of BGs differ. The problem with One+ does not occur. For the time being I will continue with the combination One+, Juggluco and AAPS.
+> 
+> This will be my last contribution to this issue.
+> 
+> [Image: Image | https://github.com/user-attachments/assets/49cb146f-420f-4c09-9add-c9fac75a0246]

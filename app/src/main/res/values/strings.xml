@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">G7 Night Alarm</string>
+    <string name="notification_channel_monitor_name">Glucose Monitor</string>
+    <string name="notification_channel_monitor_desc">Persistent monitoring and latest glucose reading</string>
+    <string name="notification_channel_alarm_name">Urgent Glucose Alarm</string>
+    <string name="notification_channel_alarm_desc">Full-screen alarm for urgent glucose conditions</string>
+    <string name="action_open">Open</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_snooze">Snooze</string>
+</resources>
+
