@@ -151,7 +151,7 @@ jobs:
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
             ./gradlew --no-daemon connectedDebugAndroidTest
-            mkdir -p artifacts/logcat artifacts/screenshots
+            mkdir -p artifacts/logcat artifacts/screenshots artifacts/screenshots/api${{ matrix.api-level }}
             adb logcat -d > artifacts/logcat/logcat-api${{ matrix.api-level }}.txt || true
             # Pull emulator screenshots written by tests
             adb pull /sdcard/Android/data/com.g7nightalarm.app.debug/files/screenshots artifacts/screenshots/api${{ matrix.api-level }} || true

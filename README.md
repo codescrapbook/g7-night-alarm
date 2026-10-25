@@ -3,6 +3,10 @@ G7 Night Alarm (Android, Kotlin/Compose)
 
 Purpose: A backup, tablet‑friendly glucose alarm for Dexcom G7 users whose official alarms may be too quiet or unreliable overnight. This app listens to xDrip+ broadcasts (not the Dexcom sensor directly), stores and charts glucose, and, on alarm, can play a piercing full‑volume alarm that continues until deliberately dismissed.
 
+Disclaimer
+----------
+This is a free, open‑source personal hobby project provided “AS IS” without warranty of any kind. It is NOT a medical device, is not FDA‑cleared or approved, and is not affiliated with or endorsed by Dexcom or xDrip+. It must not replace a prescribed CGM, its alarms, or medical advice. It may fail to alert. Anyone who uses, builds, or modifies it does so entirely at their own risk, and the author(s) assume no liability or responsibility for any harm, injury, or damages arising from its use.
+
 Safety note
 -----------
 - This app is NOT a medical device. It is intended only as a backup/secondary alarm. It does not replace your prescribed devices or medical advice.
@@ -116,7 +120,7 @@ Known limitations and notes
 
 License
 -------
-Apache 2.0 for this app code. Vosk model licenses are separate; follow the model author’s license terms.
+MIT License — see the `LICENSE` file at the repo root. Any third‑party models or libraries (e.g., Vosk) carry their own licenses; follow their license terms.
 
 # New repo
 
