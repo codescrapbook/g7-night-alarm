@@ -184,8 +184,19 @@ class EndToEndInstrumentedTest {
         // Open Settings from Home using UiAutomator to avoid Compose/Espresso interop issues
         // Ensure app is foreground
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        // Prefer Espresso for reliability on API 34
-        onView(withText("Settings")).perform(click())
+        // Try UiAutomator first; fall back to Espresso if not found
+        val settingsFound = device.wait(Until.hasObject(By.textContains("Settings")), 3000)
+        if (settingsFound) {
+            device.findObject(By.textContains("Settings")).click()
+        } else {
+            try {
+                onView(withText("Settings")).perform(click())
+            } catch (_: Throwable) {
+                // As a final attempt, search again via UiAutomator after a short idle
+                device.waitForIdle()
+                device.findObject(By.textContains("Settings"))?.click()
+            }
+        }
         // Wait for Settings and scroll if needed to reveal Music Mode
         var found = device.wait(Until.hasObject(By.textContains("Music Mode")), 4000)
         if (!found) {
