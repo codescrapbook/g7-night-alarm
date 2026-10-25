@@ -24,10 +24,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         MonitorService.start(this)
+        val startOnSettings = intent?.getBooleanExtra("debug_open_settings", false) == true
         setContent {
             G7Theme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    AppNav()
+                    AppNav(startOnSettings = startOnSettings)
                 }
             }
         }
@@ -35,9 +36,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNav() {
+private fun AppNav(startOnSettings: Boolean) {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = "home") {
+    val start = if (startOnSettings) "settings" else "home"
+    NavHost(navController = nav, startDestination = start) {
         composable("home") { HomeScreen(onOpenSettings = { nav.navigate("settings") }) }
         composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }) }
     }

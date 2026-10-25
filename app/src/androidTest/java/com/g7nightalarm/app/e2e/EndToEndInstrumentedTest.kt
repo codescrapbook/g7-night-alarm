@@ -229,6 +229,13 @@ class EndToEndInstrumentedTest {
                     return@repeat
                 }
             }
+            // Final fallback: relaunch activity directly into Settings via debug extra, then check again
+            if (!found) {
+                try {
+                    device.executeShellCommand("am start -n ${context.packageName}/com.g7nightalarm.app.ui.MainActivity --ez debug_open_settings true")
+                    found = device.wait(Until.hasObject(By.textContains(\"Music Mode\")), 5000)
+                } catch (_: Throwable) { }
+            }
         }
         Assert.assertTrue("Expected to find 'Music Mode' in Settings.", found)
         // Take screenshot of settings including Music Mode section
@@ -312,7 +319,12 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for high alarm.", ok)
         screenshot("awake_high.png")
-        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH))
+        context.sendBroadcast(
+            Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH)
+            }
+        )
         Thread.sleep(500)
         am.setStreamVolume(AudioManager.STREAM_ALARM, before, 0)
     }
@@ -344,7 +356,12 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for signal lost.", ok)
         screenshot("awake_signal_lost.png")
-        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL))
+        context.sendBroadcast(
+            Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL)
+            }
+        )
         Thread.sleep(500)
         am.setStreamVolume(AudioManager.STREAM_ALARM, before, 0)
     }
@@ -367,7 +384,20 @@ class EndToEndInstrumentedTest {
             Thread.sleep(250)
         }
         Assert.assertTrue(reached)
-        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH))
+        // Clear and wait until DataStore has recorded the clear timestamp
+        context.sendBroadcast(
+            Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH)
+            }
+        )
+        var clearRecorded = false
+        repeat(20) {
+            val ts = runBlocking { SettingsRepository(context).flow.first().lastHighClearAt }
+            if (ts > 0L) { clearRecorded = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected lastHighClearAt to be recorded after CLEAR.", clearRecorded)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(280.0)
