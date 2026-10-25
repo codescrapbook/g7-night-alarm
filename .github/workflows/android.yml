@@ -24,6 +24,8 @@ jobs:
           cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Accept SDK licenses
         run: yes | sdkmanager --licenses
       - name: Install SDK components
@@ -101,6 +103,8 @@ jobs:
           cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Accept SDK licenses
         run: yes | sdkmanager --licenses
       - name: Install SDK components
