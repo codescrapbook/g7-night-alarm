@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.g7nightalarm.app.G7NightAlarmApp
@@ -55,6 +57,14 @@ class MonitorService : Service() {
     private lateinit var tts: TtsManager
     private var voice: VoiceKeywordListener? = null
     @Volatile private var alarmActive: Boolean = false
+    private val alarmStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_ALARM_STOPPED) {
+                alarmActive = false
+                voice?.resume()
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -72,6 +82,7 @@ class MonitorService : Service() {
         startFallbackPolling()
         observeVoiceToggle()
         scheduleAutoSleep()
+        registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -198,6 +209,7 @@ class MonitorService : Service() {
     override fun onDestroy() {
         pollingJob?.cancel()
         scope.cancel()
+        unregisterReceiver(alarmStateReceiver)
         voice?.stop()
         super.onDestroy()
     }
@@ -208,6 +220,7 @@ class MonitorService : Service() {
         private const val MONITOR_NOTIF_ID = 42
         private val mgdlFormat = DecimalFormat("###0.#")
         private fun format(v: Double) = mgdlFormat.format(v)
+        const val ACTION_ALARM_STOPPED = "com.g7nightalarm.ALARM_STOPPED"
         fun start(context: Context) {
             val intent = Intent(context, MonitorService::class.java)
             if (Build.VERSION.SDK_INT >= 26) {
@@ -239,5 +252,6 @@ class MonitorService : Service() {
             )
         }
     }
+
 }
 

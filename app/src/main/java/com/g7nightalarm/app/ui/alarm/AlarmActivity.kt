@@ -44,6 +44,8 @@ class AlarmActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     AlarmContent(onDismiss = {
                         alarmController.stopAlarm()
+                        // notify service to resume voice
+                        sendBroadcast(android.content.Intent(com.g7nightalarm.app.service.MonitorService.ACTION_ALARM_STOPPED))
                         finish()
                     })
                 }
