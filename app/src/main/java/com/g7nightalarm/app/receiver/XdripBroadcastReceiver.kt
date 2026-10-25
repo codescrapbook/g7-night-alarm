@@ -10,6 +10,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.round
+import com.g7nightalarm.app.settings.SettingsRepository
+import com.g7nightalarm.app.settings.SettingsKeys
+import com.g7nightalarm.app.time.ClockHolder
 
 class XdripBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -44,6 +47,9 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
             val dao = AppDatabase.get(context).glucoseDao()
             dao.insert(reading)
             dao.prune(System.currentTimeMillis() - HISTORY_PRUNE_MS)
+            // Record last reading arrival using the monotonic debug-aware clock
+            val repo = SettingsRepository(context)
+            repo.update { p -> p[SettingsKeys.lastReadingAt] = ClockHolder.nowMs() }
         }
     }
 

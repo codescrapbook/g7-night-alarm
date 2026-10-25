@@ -48,6 +48,8 @@ data class SettingsState(
     val musicLowUri: String? = null,
     val musicHighUri: String? = null,
     val musicSignalUri: String? = null,
+    // Monotonic timestamp of last reading arrival (elapsed clock)
+    val lastReadingAtMs: Long = 0L,
     val lastLowWarnClearAt: Long = 0L,
     val lastLowClearAt: Long = 0L,
     val lastHighClearAt: Long = 0L,
@@ -85,6 +87,8 @@ object SettingsKeys {
     val musicLowUri = stringPreferencesKey("music_low_uri")
     val musicHighUri = stringPreferencesKey("music_high_uri")
     val musicSignalUri = stringPreferencesKey("music_signal_uri")
+    // Monotonic timestamp of last data arrival
+    val lastReadingAt = longPreferencesKey("last_reading_at_elapsed")
 }
 
 class SettingsRepository(private val context: Context) {
@@ -119,6 +123,7 @@ class SettingsRepository(private val context: Context) {
             musicLowUri = prefs[SettingsKeys.musicLowUri],
             musicHighUri = prefs[SettingsKeys.musicHighUri],
             musicSignalUri = prefs[SettingsKeys.musicSignalUri],
+            lastReadingAtMs = prefs[SettingsKeys.lastReadingAt] ?: 0L,
             lastLowWarnClearAt = prefs[SettingsKeys.lastLowWarnClearAt] ?: 0L,
             lastLowClearAt = prefs[SettingsKeys.lastLowClearAt] ?: 0L,
             lastHighClearAt = prefs[SettingsKeys.lastHighClearAt] ?: 0L,

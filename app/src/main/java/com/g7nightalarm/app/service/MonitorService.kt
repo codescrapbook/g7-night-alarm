@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
+import com.g7nightalarm.app.time.ClockHolder
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -144,7 +145,7 @@ class MonitorService : Service() {
             combine(latestFlow, prevFlow, settingsFlow) { latest, prev, s -> Triple(latest, prev, s) }
                 .distinctUntilChanged()
                 .collect { (latest, prev, s) ->
-                    val event = evaluator.evaluate(latest, prev, System.currentTimeMillis(), s)
+                    val event = evaluator.evaluate(latest, prev, ClockHolder.nowMs(), s)
                     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     nm.notify(MONITOR_NOTIF_ID, buildMonitorNotification(latest))
                     handleAlarmEvent(event, latest)
@@ -166,7 +167,7 @@ class MonitorService : Service() {
                 return@launch
             }
             // Awake mode behavior with band and snooze
-            val now = System.currentTimeMillis()
+            val now = ClockHolder.nowMs()
             val awakeVol = s.awakeVolumePercent
             val musicEnabled = s.musicModeEnabled
             val lowUri = s.musicLowUri?.takeIf { it.isNotBlank() }?.let { android.net.Uri.parse(it) }

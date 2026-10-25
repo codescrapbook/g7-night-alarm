@@ -25,6 +25,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sin
+import com.g7nightalarm.app.time.ClockHolder
 
 class AlarmController(private val context: Context) {
     private var audioTrack: AudioTrack? = null
@@ -33,18 +34,14 @@ class AlarmController(private val context: Context) {
     companion object {
         @Volatile private var globalPreviousAlarmVolume: Int? = null
         private const val ALARM_NOTIF_ID = 1001
-        @Volatile var testNowMs: Long? = null
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
     private var rampJob: Thread? = null
     private var mediaPlayer: MediaPlayer? = null
     @Volatile var isMusicPlaying: Boolean = false
-    /**
-     * Time source used for testing the awake-mode volume ramp. Defaults to System.currentTimeMillis.
-     * Tests may override this to simulate passage of time deterministically.
-     */
-    var nowProvider: () -> Long = { testNowMs ?: System.currentTimeMillis() }
+    // Monotonic clock for timing decisions
+    private fun nowMs(): Long = ClockHolder.nowMs()
 
     fun showFullScreenAlarmNotification(): Notification {
         val fullScreenIntent = Intent(context, AlarmActivity::class.java)
@@ -700,8 +697,8 @@ class AlarmController(private val context: Context) {
                     if (!fillBuffer()) break
                 }
             } else {
-                val endTime = nowProvider() + durationMs
-                while (!Thread.currentThread().isInterrupted && nowProvider() < endTime) {
+                val endTime = nowMs() + durationMs
+                while (!Thread.currentThread().isInterrupted && nowMs() < endTime) {
                     if (!fillBuffer()) break
                 }
                 // auto-restore volume after preview
@@ -725,9 +722,9 @@ class AlarmController(private val context: Context) {
         rampJob = thread(start = true, isDaemon = true, name = "VolumeRamp") {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val start = nowProvider()
+            val start = nowMs()
             while (true) {
-                val elapsed = nowProvider() - start
+                val elapsed = nowMs() - start
                 val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
                 val curPercent = startPercent + ((endPercent - startPercent) * frac).toInt()
                 val set = (max * (curPercent / 100.0)).toInt().coerceIn(1, max)

@@ -33,6 +33,7 @@ import java.io.File
 import com.g7nightalarm.app.receiver.TestAlarmStartReceiver
 import com.g7nightalarm.app.receiver.TestTimeReceiver
 import com.g7nightalarm.app.receiver.TestVoiceInjectReceiver
+import com.g7nightalarm.app.receiver.FakeClockReceiver
 
 @RunWith(AndroidJUnit4::class)
 @LargeTest
@@ -47,6 +48,26 @@ class EndToEndInstrumentedTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
+    private fun clockReset() {
+        context.sendBroadcast(
+            Intent(FakeClockReceiver.ACTION_SET_CLOCK).apply {
+                component = ComponentName(context, FakeClockReceiver::class.java)
+                putExtra(FakeClockReceiver.EXTRA_RESET, true)
+            }
+        )
+        Thread.sleep(100)
+    }
+
+    private fun clockAdvance(ms: Long) {
+        context.sendBroadcast(
+            Intent(FakeClockReceiver.ACTION_SET_CLOCK).apply {
+                component = ComponentName(context, FakeClockReceiver::class.java)
+                putExtra(FakeClockReceiver.EXTRA_ADVANCE_MS, ms)
+            }
+        )
+        Thread.sleep(100)
+    }
 
     private fun grantRuntimePermissions() {
         if (Build.VERSION.SDK_INT >= 33) {
@@ -122,6 +143,8 @@ class EndToEndInstrumentedTest {
         try {
             device.wakeUp()
         } catch (_: Throwable) {}
+        // Reset fake clock offset
+        clockReset()
     }
 
     @Test
@@ -284,8 +307,7 @@ class EndToEndInstrumentedTest {
                 putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
             }
         )
-        val baseNow = System.currentTimeMillis()
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow
+        clockReset()
         // Wait until volume reaches at least the awake starting volume
         val awakeVol = (max * (40 / 100.0)).toInt().coerceIn(1, max)
         var startVol = -1
@@ -296,7 +318,7 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected ramp to start near awake volume.", startVol in awakeVol until max)
         // Midpoint (~2.5 min): expect volume higher than start and less than max
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (2 * 60 + 30) * 1000L
+        clockAdvance((2 * 60 + 30) * 1000L)
         var midGtStart = false
         var midVal = -1
         repeat(20) { // wait up to ~5s for ramp thread to apply
@@ -306,7 +328,7 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected midpoint volume > start.", midGtStart)
         // End (~5 min): expect max
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = baseNow + (5 * 60 + 2) * 1000L
+        clockAdvance((2 * 60 + 2) * 1000L) // advance remaining to reach ~5min
         var atMax = false
         repeat(60) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMax = true; return@repeat }
@@ -321,7 +343,7 @@ class EndToEndInstrumentedTest {
         Thread.sleep(500)
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
         Assert.assertEquals(prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        com.g7nightalarm.app.alarm.AlarmController.testNowMs = null
+        clockReset()
     }
 
     @Test
@@ -489,22 +511,16 @@ class EndToEndInstrumentedTest {
             }
         )
         // Simulate 20 minutes since clear (within 30-min window)
-        runBlocking {
-            SettingsRepository(context).update { p ->
-                p[SettingsKeys.lastLowWarnClearAt] = System.currentTimeMillis() - 20L * 60L * 1000L
-            }
-        }
+        clockReset()
+        clockAdvance(20L * 60L * 1000L)
         Thread.sleep(300)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(75.0)
         Thread.sleep(1500)
         Assert.assertEquals("Expected low-band alarm suppressed within 30 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
         // After 31 minutes it should re-alarm
-        runBlocking {
-            SettingsRepository(context).update { p ->
-                p[SettingsKeys.lastLowWarnClearAt] = System.currentTimeMillis() - 31L * 60L * 1000L
-            }
-        }
+        clockReset()
+        clockAdvance(31L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(75.0)
         var relaunch = false
@@ -556,17 +572,16 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected lastLowClearAt to be recorded after CLEAR.", clearRecorded)
         // Within 15 minutes it should be suppressed
+        clockReset()
+        clockAdvance(10L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Re-trigger sub-70 low
         sendBgEstimate(65.0)
         Thread.sleep(1500)
         Assert.assertEquals("Expected low <70 suppressed within 15 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
         // After 16 minutes it should re-alarm
-        runBlocking {
-            SettingsRepository(context).update { p ->
-                p[SettingsKeys.lastLowClearAt] = System.currentTimeMillis() - 16L * 60L * 1000L
-            }
-        }
+        clockReset()
+        clockAdvance(16L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(65.0)
         var relaunched = false

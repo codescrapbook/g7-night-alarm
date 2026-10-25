@@ -33,9 +33,19 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
+                <action android:name="com.g7nightalarm.TEST_START_AWAKE_LOW_WARN" />
                 <action android:name="com.g7nightalarm.TEST_START_AWAKE_RAMP_LOW" />
                 <action android:name="com.g7nightalarm.TEST_START_AWAKE_HIGH" />
                 <action android:name="com.g7nightalarm.TEST_START_SIGNAL_LOST" />
+            </intent-filter>
+        </receiver>
+        <!-- Debug-only clock control -->
+        <receiver
+            android:name=".receiver.FakeClockReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.DEBUG_SET_CLOCK" />
             </intent-filter>
         </receiver>
         <receiver

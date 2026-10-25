@@ -8,6 +8,7 @@ import com.g7nightalarm.app.settings.SettingsKeys
 import com.g7nightalarm.app.settings.SettingsRepository
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import com.g7nightalarm.app.time.ClockHolder
 
 class AlarmActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -20,7 +21,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
             GlobalScope.launch {
                 val repo = SettingsRepository(context)
                 repo.update { p ->
-                    val now = System.currentTimeMillis()
+                    val now = ClockHolder.nowMs()
                     when (type) {
                         TYPE_LOW_WARN -> p[SettingsKeys.lastLowWarnClearAt] = now
                         TYPE_LOW -> p[SettingsKeys.lastLowClearAt] = now

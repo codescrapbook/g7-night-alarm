@@ -3,6 +3,7 @@ package com.g7nightalarm.app.alarm
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsState
 import kotlin.math.abs
+import com.g7nightalarm.app.time.ClockHolder
 
 sealed class AlarmEvent {
     data class UrgentLow(val valueMgdl: Double) : AlarmEvent()
@@ -22,7 +23,14 @@ class AlarmEvaluator {
     ): AlarmEvent {
         if (latest == null) return AlarmEvent.NoData(settings.thresholds.noDataMinutes)
 
-        val ageMin = ((nowMs - latest.timestamp) / 60000.0).toInt()
+        val computedNow = ClockHolder.nowMs()
+        val lastAt = settings.lastReadingAtMs
+        val ageMin = if (lastAt > 0L) {
+            ((computedNow - lastAt) / 60000.0).toInt()
+        } else {
+            // Fallback to wall-clock comparison if debug clock not set
+            ((System.currentTimeMillis() - latest.timestamp) / 60000.0).toInt()
+        }
         if (ageMin >= settings.thresholds.noDataMinutes) {
             return AlarmEvent.NoData(ageMin)
         }
