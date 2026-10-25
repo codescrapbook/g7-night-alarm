@@ -459,7 +459,13 @@ class EndToEndInstrumentedTest {
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Trigger low warning band at 75 mg/dL
-        sendBgEstimate(75.0)
+        // Use debug receiver to start low warning deterministically; service path is exercised below for suppression checks
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_LOW_WARN).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 60)
+            }
+        )
         var reached = false
         repeat(80) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { reached = true; return@repeat }
@@ -517,7 +523,7 @@ class EndToEndInstrumentedTest {
         val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
-        // Trigger sub-70 low at 65 mg/dL
+        // Trigger sub-70 low at 65 mg/dL via service path
         sendBgEstimate(65.0)
         var reached = false
         repeat(120) {

@@ -12,6 +12,10 @@ class TestAlarmStartReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val controller = AlarmController(context)
         when (intent.action) {
+            ACTION_START_AWAKE_LOW_WARN -> {
+                val vol = intent.getIntExtra(EXTRA_AWAKE_VOL, 60)
+                controller.startAwakeChimeLowWarning(vol)
+            }
             ACTION_START_AWAKE_RAMP_LOW -> {
                 val urgent = intent.getBooleanExtra(EXTRA_URGENT, false)
                 val vol = intent.getIntExtra(EXTRA_AWAKE_VOL, 60)
@@ -28,6 +32,7 @@ class TestAlarmStartReceiver : BroadcastReceiver() {
         }
     }
     companion object {
+        const val ACTION_START_AWAKE_LOW_WARN = "com.g7nightalarm.TEST_START_AWAKE_LOW_WARN"
         const val ACTION_START_AWAKE_RAMP_LOW = "com.g7nightalarm.TEST_START_AWAKE_RAMP_LOW"
         const val ACTION_START_AWAKE_HIGH = "com.g7nightalarm.TEST_START_AWAKE_HIGH"
         const val ACTION_START_SIGNAL_LOST = "com.g7nightalarm.TEST_START_SIGNAL_LOST"
