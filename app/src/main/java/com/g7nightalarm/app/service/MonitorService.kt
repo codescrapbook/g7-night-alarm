@@ -132,15 +132,7 @@ class MonitorService : Service() {
         scope.launch {
             val s = settings.flow.first()
             val mode = if (s.sleepMode) AppMode.SLEEP else AppMode.AWAKE
-            val full = when (event) {
-                is AlarmEvent.None -> false
-                is AlarmEvent.UrgentLow -> true
-                is AlarmEvent.NoData -> {
-                    if (s.safetyNetAlwaysFull && event.minutes >= 30) true
-                    else mode == AppMode.SLEEP
-                }
-                else -> mode == AppMode.SLEEP
-            }
+            val full = com.g7nightalarm.app.alarm.AlarmPolicy.shouldUseFullAlarm(event, mode, s.safetyNetAlwaysFull)
             if (full) {
                 alarmActive = true
                 voice?.pause()
