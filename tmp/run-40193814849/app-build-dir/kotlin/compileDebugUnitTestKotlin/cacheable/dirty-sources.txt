@@ -1,0 +1,11 @@
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/robo/BootAndScheduleTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/alarm/AlarmPolicySnoozeTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/util/UnitsUtilTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/receiver/XdripBroadcastReceiverTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/net/ParsingTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/settings/MusicSettingsTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/alarm/AlarmRampTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/screenshots/RoborazziScreenshotsTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/alarm/AlarmPolicyTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/schedule/SleepSchedulerTest.kt
+/home/runner/work/g7-night-alarm/g7-night-alarm/app/src/test/java/com/g7nightalarm/app/alarm/AlarmEvaluatorTest.kt
