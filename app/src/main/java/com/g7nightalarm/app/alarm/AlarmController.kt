@@ -32,6 +32,7 @@ class AlarmController(private val context: Context) {
     private var previousAlarmVolume: Int? = null
     companion object {
         @Volatile private var globalPreviousAlarmVolume: Int? = null
+        private const val ALARM_NOTIF_ID = 1001
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
@@ -217,9 +218,7 @@ class AlarmController(private val context: Context) {
         isMusicPlaying = false
     }
 
-    companion object {
-        private const val ALARM_NOTIF_ID = 1001
-    }
+    
 
     // --- Awake-mode support ---
     fun previewAwakeChime(volumePercent: Int) {
