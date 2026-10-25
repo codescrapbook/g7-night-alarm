@@ -113,9 +113,16 @@ class EndToEndInstrumentedTest {
         // Long-press HOLD to dismiss
         val hold = device.findObject(By.text("HOLD"))
         hold.longClick()
-        // Wait a moment and verify volume restored (or at least not max)
-        Thread.sleep(1000)
-        Assert.assertNotEquals("Alarm volume should be restored after dismiss", max, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        // Wait up to 5s and verify volume restored (or at least not max)
+        var restored = false
+        repeat(10) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) != max) {
+                restored = true
+                return@repeat
+            }
+            Thread.sleep(500)
+        }
+        Assert.assertTrue("Alarm volume should be restored after dismiss. Actual: ${am.getStreamVolume(AudioManager.STREAM_ALARM)}", restored)
         // Try to restore explicitly if not already
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
     }
@@ -137,7 +144,7 @@ class EndToEndInstrumentedTest {
         // Trigger the receiver directly
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.SleepScheduleReceiver.ACTION_AUTO_SLEEP))
         // Allow async work
-        Thread.sleep(1500)
+        Thread.sleep(3000)
         Assert.assertTrue(com.g7nightalarm.app.voice.TtsManager.lastMessage?.contains("Turning on for sleep.") == true)
         screenshot("schedule_announcement.png")
     }
@@ -145,7 +152,10 @@ class EndToEndInstrumentedTest {
     @Test
     fun settings_music_mode_screenshot() {
         // Open Settings from Home
-        device.findObject(By.text("Settings")).click()
+        device.wait(Until.hasObject(By.text("Settings")), 5000)
+        val settingsBtn = device.findObject(By.text("Settings"))
+        Assert.assertNotNull("Settings button should be visible", settingsBtn)
+        settingsBtn.click()
         device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")

@@ -7,7 +7,7 @@
             android:name=".service.MonitorService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback|dataSync"
+            android:foregroundServiceType="mediaPlayback"
             tools:replace="android:foregroundServiceType" />
     </application>
 </manifest>
