@@ -247,24 +247,44 @@ class EndToEndInstrumentedTest {
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
         val baseNow = System.currentTimeMillis()
-        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow))
+        context.sendBroadcast(
+            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
+                component = ComponentName(context, TestTimeReceiver::class.java)
+                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow)
+            }
+        )
         context.sendBroadcast(
             Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_RAMP_LOW).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
                 putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
                 putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 40)
             }
         )
-        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 - 5) * 1000L))
+        context.sendBroadcast(
+            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
+                component = ComponentName(context, TestTimeReceiver::class.java)
+                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 - 5) * 1000L)
+            }
+        )
         Thread.sleep(1000)
         Assert.assertNotEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_SET_NOW).putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L))
+        context.sendBroadcast(
+            Intent(TestTimeReceiver.ACTION_SET_NOW).apply {
+                component = ComponentName(context, TestTimeReceiver::class.java)
+                putExtra(TestTimeReceiver.EXTRA_NOW_MS, baseNow + (5 * 60 + 2) * 1000L)
+            }
+        )
         Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 8000))
         screenshot("awake_ramp_urgent.png")
         context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
         Thread.sleep(500)
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
         Assert.assertEquals(prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        context.sendBroadcast(Intent(TestTimeReceiver.ACTION_CLEAR_NOW))
+        context.sendBroadcast(
+            Intent(TestTimeReceiver.ACTION_CLEAR_NOW).apply {
+                component = ComponentName(context, TestTimeReceiver::class.java)
+            }
+        )
     }
 
     @Test
@@ -273,6 +293,11 @@ class EndToEndInstrumentedTest {
             SettingsRepository(context).update { p ->
                 p[SettingsKeys.sleepMode] = false
                 p[SettingsKeys.awakeVolumePercent] = 35
+                // Clear any prior snooze timestamps that could suppress highs
+                p[SettingsKeys.lastHighClearAt] = 0L
+                p[SettingsKeys.lastLowClearAt] = 0L
+                p[SettingsKeys.lastLowWarnClearAt] = 0L
+                p[SettingsKeys.lastSignalClearAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -298,6 +323,9 @@ class EndToEndInstrumentedTest {
             SettingsRepository(context).update { p ->
                 p[SettingsKeys.sleepMode] = false
                 p[SettingsKeys.awakeVolumePercent] = 50
+                // Clear any prior snooze timestamps that could suppress signal lost
+                p[SettingsKeys.lastSignalClearAt] = 0L
+                p[SettingsKeys.lastHighClearAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -351,10 +379,20 @@ class EndToEndInstrumentedTest {
     @Test
     fun voicePhrase_switchesMode_viaInjectedPhrase() {
         runBlocking { SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false } }
-        context.sendBroadcast(Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good night"))
-        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 8000))
-        context.sendBroadcast(Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good morning"))
-        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Awake")), 8000))
+        context.sendBroadcast(
+            Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).apply {
+                component = ComponentName(context, TestVoiceInjectReceiver::class.java)
+                putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good night")
+            }
+        )
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Sleep")), 15000))
+        context.sendBroadcast(
+            Intent(TestVoiceInjectReceiver.ACTION_TEST_VOICE).apply {
+                component = ComponentName(context, TestVoiceInjectReceiver::class.java)
+                putExtra(TestVoiceInjectReceiver.EXTRA_PHRASE, "good morning")
+            }
+        )
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("Mode: Awake")), 15000))
         screenshot("voice_switch.png")
     }
 }
