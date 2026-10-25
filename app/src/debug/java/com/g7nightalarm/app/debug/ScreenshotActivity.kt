@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.Composable
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsKeys
@@ -50,6 +51,7 @@ class ScreenshotActivity : ComponentActivity() {
         }
     }
 
+    @Composable
     private fun renderHome(w: Int, h: Int) {
         G7Theme {
             Box(Modifier.size(w.dp, h.dp)) {
