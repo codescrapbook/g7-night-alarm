@@ -111,8 +111,13 @@ class EndToEndInstrumentedTest {
         sendBgEstimate(52.0)
         // Expect alarm screen
         Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 7_000))
-        // Volume forced to max
-        Assert.assertEquals(max, am.getStreamVolume(AudioManager.STREAM_ALARM))
+        // Volume forced to max (allow small async delay on newer Android)
+        var atMax = false
+        repeat(50) {
+            if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMax = true; return@repeat }
+            Thread.sleep(100)
+        }
+        Assert.assertTrue("Alarm volume should reach max shortly after full-screen alarm starts.", atMax)
         screenshot("alarm_fullscreen.png")
         // Try UI long-press HOLD to dismiss
         if (device.wait(Until.hasObject(By.text("HOLD")), 3000)) {
