@@ -186,7 +186,20 @@ class EndToEndInstrumentedTest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         // Prefer Espresso for reliability on API 34
         onView(withText("Settings")).perform(click())
-        device.wait(Until.hasObject(By.textContains("Music Mode")), 3000)
+        // Wait for Settings and scroll if needed to reveal Music Mode
+        var found = device.wait(Until.hasObject(By.textContains("Music Mode")), 4000)
+        if (!found) {
+            val w = device.displayWidth
+            val h = device.displayHeight
+            repeat(5) {
+                device.swipe(w / 2, (h * 3) / 4, w / 2, h / 4, /*steps*/ 20)
+                if (device.wait(Until.hasObject(By.textContains("Music Mode")), 1500)) {
+                    found = true
+                    return@repeat
+                }
+            }
+        }
+        Assert.assertTrue("Expected to find 'Music Mode' in Settings.", found)
         // Take screenshot of settings including Music Mode section
         screenshot("settings_music.png")
     }
