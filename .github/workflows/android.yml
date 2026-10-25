@@ -34,6 +34,8 @@ jobs:
         run: chmod +x gradlew
       - name: Run unit tests and coverage
         run: ./gradlew --no-daemon --stacktrace --info test jacocoTestReport assembleDebug
+      - name: Run JVM screenshot tests explicitly
+        run: ./gradlew --no-daemon --stacktrace --info :app:testDebugUnitTest --tests \"com.g7nightalarm.app.screenshots.RoborazziScreenshotsTest\"
       - name: Upload JUnit reports
         if: always()
         uses: actions/upload-artifact@v4
