@@ -84,6 +84,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Switch(checked = safetyNetFull, onCheckedChange = { safetyNetFull = it })
             }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Units: ${if (state.units == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"}")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = {
+                    val next = if (state.units == com.g7nightalarm.app.settings.Units.MG_DL)
+                        com.g7nightalarm.app.settings.Units.MMOL_L else com.g7nightalarm.app.settings.Units.MG_DL
+                    scope.launch { repo.update { it[SettingsKeys.units] = next.name } }
+                }) { Text("Toggle Units") }
+            }
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(autoHour, onValueChange = { autoHour = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Auto Sleep Hour (0-23)") })
             OutlinedTextField(autoMinute, onValueChange = { autoMinute = it.filter { ch -> ch.isDigit() }.take(2) }, label = { Text("Minute (0-59)") })
@@ -128,7 +138,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }) { Text("Do Not Disturb access") }
         }
-        Text("For offline voice, download and place Vosk small English model folder named \"vosk-model-small-en-us\" into app files via USB or an in-app downloader (future).")
+        Text("Offline voice: enabling Voice control downloads the small English model automatically.")
         Button(onClick = { alarm.startAlarm() }) { Text("Test alarm") }
     }
 }

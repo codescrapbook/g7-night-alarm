@@ -15,10 +15,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.vosk.Model
 import org.vosk.Recognizer
 import org.json.JSONObject
 import java.io.File
+import com.g7nightalarm.app.voice.VoiceModelManager.modelDir
+import org.vosk.Model
 
 class VoiceKeywordListener(
     private val context: Context,
@@ -35,11 +36,8 @@ class VoiceKeywordListener(
             Log.w(TAG, "RECORD_AUDIO not granted; not starting voice listener")
             return
         }
-        val modelDir = File(context.getExternalFilesDir(null), "vosk-model-small-en-us")
-        if (!modelDir.exists()) {
-            Log.w(TAG, "Vosk model not found at ${modelDir.absolutePath}; not starting voice listener")
-            return
-        }
+        val modelDir = modelDir(context)
+        if (!modelDir.exists()) return
         job = CoroutineScope(Dispatchers.Default).launch {
             try {
                 val model = Model(modelDir.absolutePath)

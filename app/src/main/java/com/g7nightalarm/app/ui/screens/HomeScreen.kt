@@ -37,6 +37,7 @@ import com.g7nightalarm.app.settings.SettingsRepository
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
+import com.g7nightalarm.app.settings.Units
 
 @Composable
 fun HomeScreen(onOpenSettings: () -> Unit) {
@@ -55,8 +56,8 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     }.collectAsState(initial = emptyList())
 
     val title = when {
-        latest == null -> "— mg/dL"
-        else -> "${format(latest!!.mgdl)} mg/dL ${latest!!.slopeName ?: ""}"
+        latest == null -> "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
+        else -> "${formatUnits(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${latest!!.slopeName ?: ""}"
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
 
@@ -95,7 +96,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .background(Color(0xFF181818), RoundedCornerShape(16.dp))
                 .padding(12.dp)
         ) {
-            GlucoseChart(history = history, low = 70.0, urgentLow = 55.0, high = 250.0)
+            GlucoseChart(history = history, low = convertThreshold(70.0, settings.units), urgentLow = convertThreshold(55.0, settings.units), high = convertThreshold(250.0, settings.units), units = settings.units)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(3, 6, 12, 24).forEach { h ->
@@ -111,15 +112,16 @@ private fun GlucoseChart(
     history: List<com.g7nightalarm.app.data.GlucoseReading>,
     low: Double,
     urgentLow: Double,
-    high: Double
+    high: Double,
+    units: Units
 ) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
         // Draw threshold bands
         fun yFor(v: Double): Float {
-            val minV = 40.0
-            val maxV = 300.0
+            val minV = if (units == Units.MG_DL) 40.0 else 40.0 / 18.0
+            val maxV = if (units == Units.MG_DL) 300.0 else 300.0 / 18.0
             val clamped = v.coerceIn(minV, maxV)
             val norm = (clamped - minV) / (maxV - minV)
             return (h - (norm * h)).toFloat()
@@ -137,7 +139,7 @@ private fun GlucoseChart(
             val path = Path()
             history.sortedBy { it.timestamp }.forEachIndexed { idx, r ->
                 val x = ((r.timestamp - minT).toFloat() / (maxT - minT).toFloat()).coerceIn(0f, 1f) * w
-                val y = yFor(r.mgdl)
+                val y = yFor(if (units == Units.MG_DL) r.mgdl else r.mgdl / 18.0)
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path = path, color = Color(0xFF00E5FF), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
@@ -147,4 +149,9 @@ private fun GlucoseChart(
 
 private val mgdlFormat = DecimalFormat("###0.#")
 private fun format(v: Double) = mgdlFormat.format(v)
+private val mmolFormat = DecimalFormat("##0.0")
+private fun formatUnits(mgdl: Double, units: Units): String =
+    if (units == Units.MG_DL) format(mgdl) else mmolFormat.format(mgdl / 18.0)
+private fun convertThreshold(mgdl: Double, units: Units): Double =
+    if (units == Units.MG_DL) mgdl else mgdl / 18.0
 

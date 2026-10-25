@@ -26,6 +26,7 @@ import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.ui.MainActivity
 import com.g7nightalarm.app.voice.TtsManager
 import com.g7nightalarm.app.voice.VoiceKeywordListener
+import com.g7nightalarm.app.voice.VoiceModelManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,10 +102,14 @@ class MonitorService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val sUnits = kotlinx.coroutines.runBlocking { settings.flow.first().units }
         val content = latest?.let {
             val ageMin = ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt()
             val slope = it.slopeName ?: ""
-            "${format(it.mgdl)} mg/dL  $slope  · ${ageMin}m"
+            val valueStr = if (sUnits == com.g7nightalarm.app.settings.Units.MG_DL) format(it.mgdl)
+            else mmolFormat.format(it.mgdl / 18.0)
+            val unitStr = if (sUnits == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"
+            "$valueStr $unitStr  $slope  · ${ageMin}m"
         } ?: "Waiting for data…"
 
         return NotificationCompat.Builder(this, G7NightAlarmApp.Channels.MONITOR_ID)
@@ -219,6 +224,7 @@ class MonitorService : Service() {
     companion object {
         private const val MONITOR_NOTIF_ID = 42
         private val mgdlFormat = DecimalFormat("###0.#")
+        private val mmolFormat = DecimalFormat("##0.0")
         private fun format(v: Double) = mgdlFormat.format(v)
         const val ACTION_ALARM_STOPPED = "com.g7nightalarm.ALARM_STOPPED"
         fun start(context: Context) {
@@ -234,9 +240,45 @@ class MonitorService : Service() {
     private fun observeVoiceToggle() {
         scope.launch {
             settings.flow.collect { s ->
-                if (s.voiceEnabled && !alarmActive) {
-                    if (voice == null) voice = VoiceKeywordListener(this@MonitorService, modeRepo, tts)
-                    voice?.startIfEnabledAndReady(true)
+                if (s.voiceEnabled) {
+                    // Ensure model installed, with progress notification
+                    if (!VoiceModelManager.hasModel(this@MonitorService)) {
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        val notifId = MONITOR_NOTIF_ID + 1
+                        nm.notify(
+                            notifId,
+                            NotificationCompat.Builder(this@MonitorService, G7NightAlarmApp.Channels.MONITOR_ID)
+                                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                                .setOngoing(true)
+                                .setContentTitle("Downloading voice model…")
+                                .setProgress(100, 0, true)
+                                .build()
+                        )
+                        val ok = VoiceModelManager.ensureModelInstalled(this@MonitorService) { pct ->
+                            nm.notify(
+                                notifId,
+                                NotificationCompat.Builder(this@MonitorService, G7NightAlarmApp.Channels.MONITOR_ID)
+                                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                                    .setOngoing(true)
+                                    .setContentTitle("Downloading voice model…")
+                                    .setProgress(100, pct.coerceIn(0, 100), false)
+                                    .build()
+                            )
+                        }
+                        nm.cancel(notifId)
+                        if (!ok) {
+                            tts.speak("Voice model download failed. Will retry later.", 60)
+                            return@collect
+                        } else {
+                            tts.speak("Voice control enabled.", 60)
+                        }
+                    }
+                    if (!alarmActive) {
+                        if (voice == null) voice = VoiceKeywordListener(this@MonitorService, modeRepo, tts)
+                        voice?.startIfEnabledAndReady(true)
+                    } else {
+                        voice?.pause()
+                    }
                 } else {
                     voice?.pause()
                 }
