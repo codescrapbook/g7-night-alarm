@@ -19,6 +19,29 @@ import com.g7nightalarm.app.ui.theme.G7Theme
 
 object AlarmScreens {
     @Composable
+    fun Urgent() {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFB00020).copy(alpha = 0.6f))
+                    .padding(48.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("URGENT ALARM", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
+                Text("Press and hold to dismiss", color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
+                Box(
+                    modifier = Modifier
+                        .padding(top = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("HOLD", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.Black)
+                }
+            }
+        }
+    }
+    @Composable
     fun LowWarn() {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(

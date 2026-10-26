@@ -159,14 +159,13 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun alarm_urgent_activity() {
-        val activity = Robolectric.buildActivity(AlarmActivity::class.java).setup().get()
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-        outDir.mkdirs()
-        val file = File(outDir, "alarm_urgent.png")
-        val bitmap = activity.window.decorView.drawToBitmap()
-        FileOutputStream(file).use { fos ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+    fun alarm_urgent_screen() {
+        renderAndSavePng("alarm_urgent.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    AlarmScreens.Urgent()
+                }
+            }
         }
     }
 
