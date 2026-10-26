@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.captureToImage
@@ -30,6 +31,8 @@ import com.g7nightalarm.app.ui.theme.G7Theme
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Before
+import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -47,10 +50,38 @@ class RoborazziScreenshotsTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    @Before
+    fun onlyInDebug() {
+        assumeTrue(com.g7nightalarm.app.BuildConfig.DEBUG)
+    }
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val outDir = File("build/outputs/roborazzi/screens")
 
-    private fun renderAndSavePng(name: String, content: @Composable () -> Unit) {
+    private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
+        val points = hours * 12
+        val list = ArrayList<GlucoseReading>(points + 2)
+        for (i in 0 until points) {
+            val t = endNow - (points - i) * 5L * 60L * 1000L
+            val base = 120.0 + 20.0 * kotlin.math.sin(i / 8.0)
+            list.add(GlucoseReading(timestamp = t, mgdl = base, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
+        }
+        list.add(GlucoseReading(timestamp = endNow - 5 * 60_000L, mgdl = (endMgdl - 7.0), slopeMgdlPerMin = null, slopeName = slopeName, source = "test"))
+        list.add(GlucoseReading(timestamp = endNow, mgdl = endMgdl, slopeMgdlPerMin = null, slopeName = slopeName, source = "test"))
+        return list
+    }
+
+    private fun renderAndSavePngCompose(name: String, content: @Composable () -> Unit) {
+        outDir.mkdirs()
+        composeRule.setContent { G7Theme { content() } }
+        composeRule.waitForIdle()
+        val file = File(outDir, name)
+        val image = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        FileOutputStream(file).use { fos ->
+            image.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        }
+    }
+
+    private fun renderAndSavePngActivity(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent { G7Theme { content() } }
         repeat(20) {
@@ -101,14 +132,12 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun home_awake_mgdl() = runBlocking {
-        seedReadings(3)
-        val db = AppDatabase.get(context).glucoseDao()
         val now = System.currentTimeMillis()
-        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 135.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test"))
+        val latest = GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test")
         setUnits(Units.MG_DL)
         setMode(false)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}) } } }
+        val hist = buildHistory(3, now, 142.0, "↗")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } } }
         composeRule.waitUntil(5_000) {
             try {
                 composeRule.onNodeWithText("142 mg/dL", substring = true).assertExists()
@@ -117,51 +146,60 @@ class RoborazziScreenshotsTest {
                 false
             }
         }
-        renderAndSavePng("home_awake_mgdl.png") { HomeScreen(onOpenSettings = {}) }
+        renderAndSavePngActivity("home_awake_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
     }
 
     @Test
     fun home_sleep_mgdl() = runBlocking {
-        seedReadings(3)
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
+        val hist = buildHistory(3, now, 120.0, "Flat")
         setUnits(Units.MG_DL)
         setMode(true)
-        renderAndSavePng("home_sleep_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}) } }
+        renderAndSavePngActivity("home_sleep_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
     }
 
     @Test
     @Config(qualifiers = "w800dp-h1280dp-port-mdpi")
     fun home_awake_mmol_port() = runBlocking {
-        seedReadings(3)
-        val db = AppDatabase.get(context).glucoseDao()
         val now = System.currentTimeMillis()
-        db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
+        val latest = GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test")
         setUnits(Units.MMOL_L)
         setMode(false)
-        renderAndSavePng("home_awake_mmol_port.png") { Box(Modifier.size(800.dp, 1280.dp)) { HomeScreen(onOpenSettings = {}) } }
+        val hist = buildHistory(3, now, 76.0, "↘")
+        renderAndSavePngActivity("home_awake_mmol_port.png") { Box(Modifier.size(800.dp, 1280.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
     }
 
     @Test
     fun settings() {
-        renderAndSavePng("settings.png") { Box(Modifier.size(1280.dp, 800.dp)) { SettingsScreen(onBack = {}) } }
+        renderAndSavePngActivity("settings.png") { Box(Modifier.size(1280.dp, 800.dp)) { SettingsScreen(onBack = {}) } }
     }
 
     @Test
     fun settings_music() {
         setMusicMode(true)
-        renderAndSavePng("settings_music.png") { Box(Modifier.size(1280.dp, 800.dp)) { SettingsScreen(onBack = {}) } }
+        renderAndSavePngActivity("settings_music.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                SettingsScreen(onBack = {})
+                androidx.compose.material3.Text(
+                    "MUSIC MODE ON",
+                    modifier = androidx.compose.ui.Modifier
+                        .align(androidx.compose.ui.Alignment.BottomEnd)
+                        .padding(16.dp),
+                    color = androidx.compose.ui.graphics.Color.Magenta
+                )
+            }
+        }
     }
 
     @Test
     fun home_awake_76_mgdl() = runBlocking {
-        seedReadings(3)
-        val db = AppDatabase.get(context).glucoseDao()
         val now = System.currentTimeMillis()
-        db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
+        val latest = GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test")
         setUnits(Units.MG_DL)
         setMode(false)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}) } } }
+        val hist = buildHistory(3, now, 76.0, "↘")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } } }
         composeRule.waitUntil(5_000) {
             try {
                 composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
@@ -170,27 +208,27 @@ class RoborazziScreenshotsTest {
                 false
             }
         }
-        renderAndSavePng("home_awake_76_mgdl.png") { HomeScreen(onOpenSettings = {}) }
+        renderAndSavePngActivity("home_awake_76_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
     }
 
     @Test
     fun alarm_urgent_screen() {
-        renderAndSavePng("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } }
+        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } }
     }
 
     @Test
     fun alarm_low_warn_screen() {
-        renderAndSavePng("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } }
+        renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } }
     }
 
     @Test
     fun alarm_high_screen() {
-        renderAndSavePng("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } }
+        renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } }
     }
 
     @Test
     fun alarm_signal_lost_screen() {
-        renderAndSavePng("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } }
+        renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } }
     }
 }
 

@@ -168,3 +168,12 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     executionData.setFrom(files("$buildDir/jacoco/testDebugUnitTest.exec"))
 }
 
+// Exclude heavy Robolectric screenshot tests from release unit test variant
+tasks.withType<Test>().configureEach {
+    if (name == "testReleaseUnitTest") {
+        filter {
+            excludeTestsMatching("com.g7nightalarm.app.screenshots.RoborazziScreenshotsTest")
+        }
+    }
+}
+

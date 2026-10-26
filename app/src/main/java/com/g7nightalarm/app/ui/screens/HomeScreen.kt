@@ -41,20 +41,30 @@ import com.g7nightalarm.app.settings.Units
 import com.g7nightalarm.app.util.UnitsUtil
 
 @Composable
-fun HomeScreen(onOpenSettings: () -> Unit) {
+fun HomeScreen(
+    onOpenSettings: () -> Unit,
+    previewLatest: com.g7nightalarm.app.data.GlucoseReading? = null,
+    previewHistory: List<com.g7nightalarm.app.data.GlucoseReading>? = null
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
     val settingsRepo = remember { SettingsRepository(context) }
     val modeRepo = remember { ModeRepository(context) }
-    val latest by remember { dao.latestFlow() }.collectAsState(initial = null)
+    val latest by if (previewLatest != null) {
+        remember { mutableStateOf(previewLatest) }
+    } else {
+        remember { dao.latestFlow() }.collectAsState(initial = null)
+    }
     var hours by remember { mutableIntStateOf(24) }
     val settings by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
     val isSleep = settings.sleepMode
     val scope = remember { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO) }
     val sinceMs = System.currentTimeMillis() - hours * 60L * 60L * 1000L
-    val history by remember(hours) {
-        dao.streamSince(sinceMs).map { it }
-    }.collectAsState(initial = emptyList())
+    val history by if (previewHistory != null) {
+        remember(previewHistory) { mutableStateOf(previewHistory) }
+    } else {
+        remember(hours) { dao.streamSince(sinceMs).map { it } }.collectAsState(initial = emptyList())
+    }
 
     val title = when {
         latest == null -> "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
