@@ -34,10 +34,11 @@ class AlarmController(private val context: Context) {
     companion object {
         @Volatile private var globalPreviousAlarmVolume: Int? = null
         private const val ALARM_NOTIF_ID = 1001
+        @Volatile private var rampJob: Thread? = null
+        private val rampLock = Any()
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
-    private var rampJob: Thread? = null
     private var mediaPlayer: MediaPlayer? = null
     @Volatile var isMusicPlaying: Boolean = false
     // Monotonic clock for timing decisions
@@ -719,7 +720,7 @@ class AlarmController(private val context: Context) {
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {
         stopRamp()
-        rampJob = thread(start = true, isDaemon = true, name = "VolumeRamp") {
+        val job = thread(start = true, isDaemon = true, name = "VolumeRamp") {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val start = nowMs()
@@ -737,11 +738,14 @@ class AlarmController(private val context: Context) {
             }
             if (!Thread.currentThread().isInterrupted) onComplete()
         }
+        synchronized(rampLock) { rampJob = job }
     }
 
     private fun stopRamp() {
-        rampJob?.interrupt()
-        rampJob = null
+        synchronized(rampLock) {
+            rampJob?.interrupt()
+            rampJob = null
+        }
     }
 }
 
