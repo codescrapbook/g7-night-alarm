@@ -468,8 +468,9 @@ class EndToEndInstrumentedTest {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
             Thread.sleep(250)
         }
-        Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for signal lost.", ok)
+        // Capture screenshot for diagnostics regardless of pass/fail
         screenshot("awake_signal_lost.png")
+        Assert.assertTrue("Expected STREAM_ALARM volume set to awakeVol for signal lost.", ok)
         context.sendBroadcast(
             Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
                 component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
