@@ -45,7 +45,8 @@ import com.g7nightalarm.app.ui.preview.AlarmScreens
 class RoborazziScreenshotsTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val outDir = File("app/build/outputs/roborazzi/screens")
+    // Note: tests run with working directory at the app module; write under module build/
+    private val outDir = File("build/outputs/roborazzi/screens")
 
     private fun renderAndSavePng(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
