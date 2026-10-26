@@ -26,13 +26,20 @@ import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sin
 import com.g7nightalarm.app.time.ClockHolder
+import java.util.concurrent.atomic.AtomicLong
 
 class AlarmController(private val context: Context) {
     private var audioTrack: AudioTrack? = null
     private var audioThread: Thread? = null
-    private var previousAlarmVolume: Int? = null
+    // Per-instance pre-set volume and ownership token for STREAM_ALARM control
+    private var myPreSetAlarmVolume: Int? = null
+    private var myVolumeOwnerToken: Long = 0L
     companion object {
-        @Volatile private var globalPreviousAlarmVolume: Int? = null
+        // Global restore target captured by the first owner in a session
+        @Volatile private var globalRestoreTargetVolume: Int? = null
+        // Ownership token for whoever most recently took control of STREAM_ALARM
+        private val tokenCounter = AtomicLong(0L)
+        @Volatile private var currentVolumeOwnerToken: Long = 0L
         private const val ALARM_NOTIF_ID = 1001
         @Volatile private var rampJob: Thread? = null
         private val rampLock = Any()
@@ -133,19 +140,41 @@ class AlarmController(private val context: Context) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = cur
-        if (globalPreviousAlarmVolume == null) globalPreviousAlarmVolume = cur
+        // Capture per-instance and global (if not already captured) restore targets
+        myPreSetAlarmVolume = cur
+        if (currentVolumeOwnerToken == 0L && globalRestoreTargetVolume == null) {
+            globalRestoreTargetVolume = cur
+        }
+        // Become the current owner
+        val tok = tokenCounter.incrementAndGet()
+        myVolumeOwnerToken = tok
+        currentVolumeOwnerToken = tok
         am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
     }
 
     private fun restoreAlarmVolume() {
-        val target = globalPreviousAlarmVolume ?: previousAlarmVolume
-        target?.let {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.setStreamVolume(AudioManager.STREAM_ALARM, it, 0)
+        // Only the current owner may restore; stale owners must not clobber a newer session.
+        val tok = myVolumeOwnerToken
+        if (tok == 0L) return
+        if (tok != currentVolumeOwnerToken) {
+            try {
+                android.util.Log.i("AlarmController", "Skipping volume restore: stale owner token=$tok current=$currentVolumeOwnerToken")
+            } catch (_: Throwable) {}
+            return
         }
-        previousAlarmVolume = null
-        globalPreviousAlarmVolume = null
+        val target = globalRestoreTargetVolume ?: myPreSetAlarmVolume
+        if (target != null) {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            try {
+                am.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
+                android.util.Log.i("AlarmController", "Restored STREAM_ALARM to $target by owner token=$tok")
+            } catch (_: Throwable) {}
+        }
+        // Clear ownership and global target after a successful (or attempted) restore by the active owner.
+        myPreSetAlarmVolume = null
+        myVolumeOwnerToken = 0L
+        globalRestoreTargetVolume = null
+        currentVolumeOwnerToken = 0L
     }
 
     private fun startAudio() {
@@ -714,8 +743,15 @@ class AlarmController(private val context: Context) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = cur
-        if (globalPreviousAlarmVolume == null) globalPreviousAlarmVolume = cur
+        // Capture per-instance and (if no owner) global restore targets
+        myPreSetAlarmVolume = cur
+        if (currentVolumeOwnerToken == 0L && globalRestoreTargetVolume == null) {
+            globalRestoreTargetVolume = cur
+        }
+        // Become the current owner
+        val tok = tokenCounter.incrementAndGet()
+        myVolumeOwnerToken = tok
+        currentVolumeOwnerToken = tok
         val set = (max * (volumePercent / 100.0)).toInt().coerceIn(1, max)
         // Best-effort to ensure the volume actually takes effect on newer Android
         // where async or throttling may delay application.
