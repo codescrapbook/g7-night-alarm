@@ -24,7 +24,7 @@ data class Thresholds(
     val low: Double = 80.0,
     val high: Double = 250.0,
     val rapidFallRateMgdlPerMin: Double = 3.0, // mg/dL per 5 min ~ 0.6/min, this is per min
-    val noDataMinutes: Int = 20
+    val noDataMinutes: Int = 30
 )
 
 data class SettingsState(
@@ -33,7 +33,7 @@ data class SettingsState(
     val allowAlarmSnooze: Boolean = true,
     val snoozeMinutes: Int = 10,
     val sleepMode: Boolean = false,
-    val voiceEnabled: Boolean = false,
+    val voiceEnabled: Boolean = true,
     val safetyNetAlwaysFull: Boolean = true,
     val autoSleepHour: Int = 23,
     val autoSleepMinute: Int = 0,
@@ -101,7 +101,7 @@ class SettingsRepository(private val context: Context) {
                 low = prefs[SettingsKeys.low] ?: 80.0,
                 high = prefs[SettingsKeys.high] ?: 250.0,
                 rapidFallRateMgdlPerMin = prefs[SettingsKeys.rapidFall] ?: 2.0,
-                noDataMinutes = prefs[SettingsKeys.noDataMin] ?: 20
+                noDataMinutes = prefs[SettingsKeys.noDataMin] ?: 30
             ),
             units = when (prefs[SettingsKeys.units] ?: Units.MG_DL.name) {
                 Units.MMOL_L.name -> Units.MMOL_L
@@ -110,7 +110,7 @@ class SettingsRepository(private val context: Context) {
             allowAlarmSnooze = prefs[SettingsKeys.allowSnooze] ?: true,
             snoozeMinutes = prefs[SettingsKeys.snoozeMin] ?: 10,
             sleepMode = prefs[SettingsKeys.sleepMode] ?: false,
-            voiceEnabled = prefs[SettingsKeys.voiceEnabled] ?: false,
+            voiceEnabled = prefs[SettingsKeys.voiceEnabled] ?: true,
             safetyNetAlwaysFull = prefs[SettingsKeys.safetyNetAlwaysFull] ?: true,
             autoSleepHour = prefs[SettingsKeys.autoSleepHour] ?: 23,
             autoSleepMinute = prefs[SettingsKeys.autoSleepMinute] ?: 0,

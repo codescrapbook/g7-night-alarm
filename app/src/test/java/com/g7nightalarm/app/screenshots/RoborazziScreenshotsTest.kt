@@ -56,6 +56,9 @@ class RoborazziScreenshotsTest {
             content()
         }
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        // Allow compose/Room flows to emit and recompositions to settle
+        try { Thread.sleep(50) } catch (_: Throwable) {}
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         outDir.mkdirs()
         val file = File(outDir, name)
         val bitmap = activity.window.decorView.drawToBitmap()
@@ -156,6 +159,25 @@ class RoborazziScreenshotsTest {
         renderAndSavePng("home_awake_mmol_port.png") {
             G7Theme {
                 Box(Modifier.size(800.dp, 1280.dp)) {
+                    HomeScreen(onOpenSettings = {})
+                }
+            }
+        }
+    }
+
+    @Test
+    fun home_awake_76_mgdl() = runBlocking {
+        // Seed ~3 hours ending at 76 mg/dL trending down
+        seedReadings(hours = 3)
+        val db = AppDatabase.get(context).glucoseDao()
+        val now = System.currentTimeMillis()
+        db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
+        setUnits(Units.MG_DL)
+        setMode(false)
+        renderAndSavePng("home_awake_76_mgdl.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
                 }
             }

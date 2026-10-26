@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.Checkbox
@@ -50,12 +51,11 @@ fun SettingsScreen(onBack: () -> Unit) {
     var rapidFall by remember { mutableStateOf(state.thresholds.rapidFallRateMgdlPerMin.toString()) }
     var noData by remember { mutableStateOf(state.thresholds.noDataMinutes.toString()) }
     var allowSnooze by remember { mutableStateOf(state.allowAlarmSnooze) }
-    var snoozeMin by remember { mutableStateOf(state.snoozeMinutes.toString()) }
     var voiceEnabled by remember { mutableStateOf(state.voiceEnabled) }
     var safetyNetFull by remember { mutableStateOf(state.safetyNetAlwaysFull) }
     var autoHour by remember { mutableStateOf(state.autoSleepHour.toString()) }
     var autoMinute by remember { mutableStateOf(state.autoSleepMinute.toString()) }
-    var awakeVol by remember { mutableStateOf(state.awakeVolumePercent.toString()) }
+    var awakeVolPct by remember { mutableStateOf(state.awakeVolumePercent.coerceIn(1, 100)) }
     var musicMode by remember { mutableStateOf(state.musicModeEnabled) }
     var musicLowUri by remember { mutableStateOf(state.musicLowUri ?: "") }
     var musicHighUri by remember { mutableStateOf(state.musicHighUri ?: "") }
@@ -113,14 +113,13 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(rapidFall, onValueChange = { rapidFall = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Rapid fall (mg/dL/min)") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes (signal lost)") }, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Allow snooze")
                 Switch(checked = allowSnooze, onCheckedChange = { allowSnooze = it })
             }
-            OutlinedTextField(snoozeMin, onValueChange = { snoozeMin = it.filter { ch -> ch.isDigit() } }, label = { Text("Snooze minutes") }, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -154,7 +153,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 musicLowUri = ""
             }) { Text("Clear") }
             Button(onClick = {
-                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                val vol = awakeVolPct.coerceIn(1, 100)
                 scope.launch {
                     if (musicLowUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicLowUri))
                     else alarm.startAwakeMusicLowDefault(vol)
@@ -174,7 +173,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 musicHighUri = ""
             }) { Text("Clear") }
             Button(onClick = {
-                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                val vol = awakeVolPct.coerceIn(1, 100)
                 scope.launch {
                     if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
                     else alarm.startAwakeMusicHighDefault(vol)
@@ -194,25 +193,26 @@ fun SettingsScreen(onBack: () -> Unit) {
                 musicSignalUri = ""
             }) { Text("Clear") }
             Button(onClick = {
-                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                val vol = awakeVolPct.coerceIn(1, 100)
                 scope.launch {
                     if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
                     else alarm.startAwakeMusicSignalDefault(vol)
                 }
             }) { Text("Preview") }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(awakeVol, onValueChange = { awakeVol = it.filter { ch -> ch.isDigit() }.take(3) }, label = { Text("Awake volume % (alarm stream)") })
-            Button(onClick = {
-                val vol = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
-                // preview a pleasant chime at this volume
-                val am = com.g7nightalarm.app.alarm.AlarmController(context)
-                scope.launch { 
-                    // run quick preview
-                    am.previewAwakeChime(vol) 
+        Text("Awake volume: ${awakeVolPct}%")
+        Slider(
+            value = awakeVolPct.toFloat(),
+            onValueChange = { v -> awakeVolPct = v.toInt().coerceIn(1, 100) },
+            valueRange = 1f..100f,
+            onValueChangeFinished = {
+                val vol = awakeVolPct.coerceIn(1, 100)
+                scope.launch {
+                    repo.update { it[SettingsKeys.awakeVolumePercent] = vol }
+                    alarm.previewAwakeChime(vol)
                 }
-            }) { Text("Preview") }
-        }
+            }
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Units: ${if (state.units == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"}")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -235,14 +235,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                         p[SettingsKeys.low] = low.toDoubleOrNull() ?: 80.0
                         p[SettingsKeys.high] = high.toDoubleOrNull() ?: 250.0
                         p[SettingsKeys.rapidFall] = rapidFall.toDoubleOrNull() ?: 2.0
-                        p[SettingsKeys.noDataMin] = noData.toIntOrNull() ?: 20
+                        p[SettingsKeys.noDataMin] = noData.toIntOrNull() ?: 30
                         p[SettingsKeys.allowSnooze] = allowSnooze
-                        p[SettingsKeys.snoozeMin] = snoozeMin.toIntOrNull() ?: 10
                         p[SettingsKeys.voiceEnabled] = voiceEnabled
                         p[SettingsKeys.safetyNetAlwaysFull] = safetyNetFull
                         p[SettingsKeys.autoSleepHour] = autoHour.toIntOrNull()?.coerceIn(0, 23) ?: 23
                         p[SettingsKeys.autoSleepMinute] = autoMinute.toIntOrNull()?.coerceIn(0, 59) ?: 0
-                        p[SettingsKeys.awakeVolumePercent] = awakeVol.toIntOrNull()?.coerceIn(1, 100) ?: 60
+                        p[SettingsKeys.awakeVolumePercent] = awakeVolPct.coerceIn(1, 100)
                         p[SettingsKeys.musicModeEnabled] = musicMode
                         if (musicLowUri.isNotBlank()) p[SettingsKeys.musicLowUri] = musicLowUri else p.remove(SettingsKeys.musicLowUri)
                         if (musicHighUri.isNotBlank()) p[SettingsKeys.musicHighUri] = musicHighUri else p.remove(SettingsKeys.musicHighUri)
