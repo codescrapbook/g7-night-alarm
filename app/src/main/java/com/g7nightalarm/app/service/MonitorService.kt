@@ -183,14 +183,21 @@ class MonitorService : Service() {
                 if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)) {
                     return@launch
                 }
-                // Start low warning chime if not already active; do not reset an in-progress chime
-                if (awakeAlarmType != AlarmActionReceiver.TYPE_LOW_WARN) {
-                    // If any full alarm or music/ramp is active, stop it before starting the low-band chime.
-                    // An in-band reading must never escalate to urgent.
-                    alarmController.stopAlarm()
-                    alarmController.stopAwakeMusic()
-                    alarmController.stopAwakeChime()
-                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
+                // Policy: only start low-warning chime when no other awake alarm is active.
+                // Never downgrade an active urgent/ramp/high/signal alarm on an in-band reading.
+                if (awakeAlarmType == null &&
+                    com.g7nightalarm.app.alarm.AwakeLowBandPolicy.shouldStartLowWarnChime(
+                        currentType = null,
+                        mgdl = latest.mgdl,
+                        warnMin = lwMin,
+                        warnMax = lwMax
+                    )
+                ) {
+                    startAwakeNotification(
+                        AlarmActionReceiver.TYPE_LOW_WARN,
+                        "Low warning",
+                        "Glucose ${latest.mgdl.toInt()} mg/dL in warning band"
+                    )
                     alarmController.startAwakeChimeLowWarning(awakeVol)
                     awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
                 }
