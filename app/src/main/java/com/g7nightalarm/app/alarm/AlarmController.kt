@@ -36,6 +36,7 @@ class AlarmController(private val context: Context) {
         private const val ALARM_NOTIF_ID = 1001
         @Volatile private var rampJob: Thread? = null
         private val rampLock = Any()
+        @Volatile private var rampCancelled: Boolean = false
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
@@ -720,10 +721,12 @@ class AlarmController(private val context: Context) {
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {
         stopRamp()
+        synchronized(rampLock) { rampCancelled = false }
         val job = thread(start = true, isDaemon = true, name = "VolumeRamp") {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val start = nowMs()
+            var localInterrupted = false
             while (true) {
                 val elapsed = nowMs() - start
                 val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
@@ -734,15 +737,19 @@ class AlarmController(private val context: Context) {
                 } catch (_: Throwable) {}
                 am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
                 if (frac >= 1.0) break
-                try { Thread.sleep(500) } catch (_: InterruptedException) { break }
+                try { Thread.sleep(500) } catch (_: InterruptedException) {
+                    localInterrupted = true
+                    break
+                }
             }
-            if (!Thread.currentThread().isInterrupted) onComplete()
+            if (!localInterrupted && !rampCancelled) onComplete()
         }
         synchronized(rampLock) { rampJob = job }
     }
 
     private fun stopRamp() {
         synchronized(rampLock) {
+            rampCancelled = true
             rampJob?.interrupt()
             rampJob = null
         }
