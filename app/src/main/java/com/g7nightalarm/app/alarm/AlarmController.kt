@@ -150,6 +150,24 @@ class AlarmController(private val context: Context) {
         myVolumeOwnerToken = tok
         currentVolumeOwnerToken = tok
         am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        // One-shot verification: only reapply if we're still the current owner
+        val ownerAtSet = tok
+        thread(start = true, isDaemon = true, name = "AlarmVolumeVerifyOnceMax") {
+            try {
+                Thread.sleep(400)
+                if (ownerAtSet != currentVolumeOwnerToken) return@thread
+                val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (v != max) {
+                    try {
+                        android.util.Log.w(
+                            "AlarmController",
+                            "STREAM_ALARM post-set(max) saw $v (target=$max) with owner=$ownerAtSet. Reapplying once."
+                        )
+                    } catch (_: Throwable) {}
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     private fun restoreAlarmVolume() {
@@ -792,9 +810,11 @@ class AlarmController(private val context: Context) {
             android.util.Log.i("AlarmController", "STREAM_ALARM set to $finalVol (target=$set) after $attempts attempt(s)")
         } catch (_: Throwable) {}
         // Detect late clobber (e.g., a stale restore racing shortly after we set) and reapply once.
+        val ownerAtSet = myVolumeOwnerToken
         thread(start = true, isDaemon = true, name = "AlarmVolumeVerifyOnce") {
             try {
                 Thread.sleep(400)
+                if (ownerAtSet != currentVolumeOwnerToken) return@thread
                 val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
                 if (v != set) {
                     try {
