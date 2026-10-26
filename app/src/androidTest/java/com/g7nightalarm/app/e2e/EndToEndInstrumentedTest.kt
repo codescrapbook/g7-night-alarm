@@ -327,8 +327,8 @@ class EndToEndInstrumentedTest {
             Thread.sleep(250)
         }
         Assert.assertTrue("Expected midpoint volume > start.", midGtStart)
-        // End (~5 min): expect max
-        clockAdvance((2 * 60 + 2) * 1000L) // advance remaining to reach ~5min
+        // End (~5 min): expect max. Advance enough to exceed 5 minutes total elapsed.
+        clockAdvance(160_000L)
         var atMax = false
         repeat(60) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) { atMax = true; return@repeat }
