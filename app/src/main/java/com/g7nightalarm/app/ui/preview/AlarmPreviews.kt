@@ -64,6 +64,20 @@ object AlarmScreens {
             ) {
                 Text("LOW WARNING", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
                 Text("Glucose 75 mg/dL in warning band", color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
+                Box(
+                    modifier = Modifier
+                        .padding(top = 48.dp)
+                        .background(color = Color(0xFFE5E5E5), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "DISMISS",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }
@@ -81,6 +95,20 @@ object AlarmScreens {
             ) {
                 Text("HIGH ALARM", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
                 Text("Glucose high", color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
+                Box(
+                    modifier = Modifier
+                        .padding(top = 48.dp)
+                        .background(color = Color(0xFFE5E5E5), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "DISMISS",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }
@@ -98,6 +126,20 @@ object AlarmScreens {
             ) {
                 Text("SIGNAL LOST", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
                 Text("No data for 30+ minutes", color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
+                Box(
+                    modifier = Modifier
+                        .padding(top = 48.dp)
+                        .background(color = Color(0xFFE5E5E5), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "DISMISS",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }

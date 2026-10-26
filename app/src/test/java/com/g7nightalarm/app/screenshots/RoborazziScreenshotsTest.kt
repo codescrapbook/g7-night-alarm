@@ -156,7 +156,16 @@ class RoborazziScreenshotsTest {
         val hist = buildHistory(3, now, 120.0, "Flat")
         setUnits(Units.MG_DL)
         setMode(true)
-        renderAndSavePngActivity("home_sleep_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } } }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithText("Mode: Sleep", substring = true).assertExists()
+                true
+            } catch (_: AssertionError) {
+                false
+            }
+        }
+        renderAndSavePngActivity("home_sleep_mgdl.png") { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } }
     }
 
     @Test
@@ -213,21 +222,29 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun alarm_urgent_screen() {
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } } }
+        composeRule.onNodeWithText("HOLD").assertExists()
         renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } }
     }
 
     @Test
     fun alarm_low_warn_screen() {
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } } }
+        composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } }
     }
 
     @Test
     fun alarm_high_screen() {
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } } }
+        composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } }
     }
 
     @Test
     fun alarm_signal_lost_screen() {
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } } }
+        composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } }
     }
 }

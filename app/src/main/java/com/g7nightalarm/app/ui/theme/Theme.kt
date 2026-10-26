@@ -10,8 +10,8 @@ import androidx.compose.ui.text.font.FontFamily
 import com.g7nightalarm.app.R
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF5DBB63),       // swampy green
-    onPrimary = Color(0xFF0D1B0D),
+    primary = Color(0xFF2F6B3A),       // darker swampy green
+    onPrimary = Color(0xFFE5E5E5),
     secondary = Color(0xFF8E44AD),     // bruised purple
     onSecondary = Color(0xFFEDE7F6),
     background = Color(0xFF0A0F0A),    // very dark moss

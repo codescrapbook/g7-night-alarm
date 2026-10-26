@@ -44,7 +44,8 @@ import com.g7nightalarm.app.util.UnitsUtil
 fun HomeScreen(
     onOpenSettings: () -> Unit,
     previewLatest: com.g7nightalarm.app.data.GlucoseReading? = null,
-    previewHistory: List<com.g7nightalarm.app.data.GlucoseReading>? = null
+    previewHistory: List<com.g7nightalarm.app.data.GlucoseReading>? = null,
+    previewIsSleep: Boolean? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
@@ -57,7 +58,7 @@ fun HomeScreen(
     }
     var hours by remember { mutableIntStateOf(24) }
     val settings by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
-    val isSleep = settings.sleepMode
+    val isSleep = previewIsSleep ?: settings.sleepMode
     val scope = remember { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO) }
     val sinceMs = System.currentTimeMillis() - hours * 60L * 60L * 1000L
     val history by if (previewHistory != null) {
@@ -66,9 +67,21 @@ fun HomeScreen(
         remember(hours) { dao.streamSince(sinceMs).map { it } }.collectAsState(initial = emptyList())
     }
 
-    val title = when {
-        latest == null -> "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
-        else -> "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${latest!!.slopeName ?: ""}"
+    fun trendArrowFor(r: com.g7nightalarm.app.data.GlucoseReading?): String {
+        if (r == null) return ""
+        val name = r.slopeName ?: ""
+        if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
+        val s = r.slopeMgdlPerMin ?: 0.0
+        return when {
+            s > 0.5 -> "↗"
+            s < -0.5 -> "↘"
+            else -> "→"
+        }
+    }
+    val title = if (latest == null) {
+        "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
+    } else {
+        "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrowFor(latest)}"
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
 
