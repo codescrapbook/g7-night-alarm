@@ -18,6 +18,8 @@ class AlarmActionReceiver : BroadcastReceiver() {
             val controller = AlarmController(context)
             controller.stopAwakeChime()
             controller.stopAwakeMusic()
+            // notify service that alarms have been stopped to reset internal state
+            context.sendBroadcast(Intent(com.g7nightalarm.app.service.MonitorService.ACTION_ALARM_STOPPED))
             GlobalScope.launch {
                 val repo = SettingsRepository(context)
                 repo.update { p ->

@@ -66,6 +66,9 @@ class MonitorService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_ALARM_STOPPED) {
                 alarmActive = false
+                // Reset awake alarm type so re-arming after a window works,
+                // and in-progress ramps are not considered active after CLEAR/dismiss.
+                awakeAlarmType = null
                 voice?.resume()
             }
         }
@@ -180,10 +183,12 @@ class MonitorService : Service() {
                 if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)) {
                     return@launch
                 }
-                // Start or restart low warning chime when within band and not suppressed
-                startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
-                alarmController.startAwakeChimeLowWarning(awakeVol)
-                awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
+                // Start low warning chime if not already active; do not reset an in-progress chime
+                if (awakeAlarmType != AlarmActionReceiver.TYPE_LOW_WARN) {
+                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
+                    alarmController.startAwakeChimeLowWarning(awakeVol)
+                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
+                }
                 return@launch
             }
             when (event) {
