@@ -183,7 +183,7 @@ class MonitorService : Service() {
             val lwMax = s.awakeLowWarnMax
             if (latest != null && latest.mgdl in lwMin..lwMax) {
                 val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)
-                try { android.util.Log.d("MonitorService", "LOW_WARN band mgdl=${latest.mgdl} suppressed=$suppressed now=$now lastLowWarnClearAt=${s.lastLowWarnClearAt}") } catch (_: Throwable) {}
+                try { android.util.Log.i("MonitorService", "LOW_WARN band mgdl=${latest.mgdl} suppressed=$suppressed now=$now lastLowWarnClearAt=${s.lastLowWarnClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                 if (suppressed) {
                     return@launch
                 }
@@ -209,7 +209,7 @@ class MonitorService : Service() {
             when (event) {
                 is AlarmEvent.UrgentLow -> {
                     val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
-                    try { android.util.Log.d("MonitorService", "URGENT_LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
+                    try { android.util.Log.i("MonitorService", "URGENT_LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
                         try { android.util.Log.d("MonitorService", "START LOW RAMP urgent=true typeWas=$awakeAlarmType vol=$awakeVol") } catch (_: Throwable) {}
@@ -224,7 +224,7 @@ class MonitorService : Service() {
                 }
                 is AlarmEvent.Low -> {
                     val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
-                    try { android.util.Log.d("MonitorService", "LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
+                    try { android.util.Log.i("MonitorService", "LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
                         try { android.util.Log.d("MonitorService", "START LOW RAMP urgent=false typeWas=$awakeAlarmType vol=$awakeVol") } catch (_: Throwable) {}

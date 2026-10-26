@@ -51,7 +51,7 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
             val repo = SettingsRepository(context)
             repo.update { p -> p[SettingsKeys.lastReadingAt] = ClockHolder.nowMs() }
             try {
-                android.util.Log.d(
+                android.util.Log.i(
                     TAG,
                     "BG_ESTIMATE received mgdl=$mgdl ts=$ts slopePerMin=$slopePerMin updatedLastAt=${ClockHolder.nowMs()}"
                 )
