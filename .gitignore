@@ -42,3 +42,6 @@ google-services.json
  
 # Repo-local scratch and downloaded artifacts
 tmp/
+ci-artifacts*/
+ci-artifacts-*/
+*-artifacts*/

@@ -717,7 +717,16 @@ class AlarmController(private val context: Context) {
         previousAlarmVolume = cur
         if (globalPreviousAlarmVolume == null) globalPreviousAlarmVolume = cur
         val set = (max * (volumePercent / 100.0)).toInt().coerceIn(1, max)
-        am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+        // Best-effort to ensure the volume actually takes effect on newer Android
+        // where async or throttling may delay application.
+        var attempts = 0
+        while (attempts < 6) {
+            am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+            val now = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (now == set) break
+            try { Thread.sleep(100) } catch (_: Throwable) {}
+            attempts++
+        }
     }
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {

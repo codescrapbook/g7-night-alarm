@@ -50,11 +50,22 @@ class RoborazziScreenshotsTest {
     // Note: tests run with working directory at the app module; write under module build/
     private val outDir = File("build/outputs/roborazzi/screens")
 
+    private fun waitForLatestNotNull(timeoutMs: Long = 2000L) {
+        val dao = AppDatabase.get(context).glucoseDao()
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            if (dao.latest() != null) return
+            try { Thread.sleep(50) } catch (_: Throwable) {}
+        }
+    }
+
     private fun renderAndSavePng(name: String, content: @Composable () -> Unit) {
         val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
         activity.setContent {
             content()
         }
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        try { Thread.sleep(50) } catch (_: Throwable) {}
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         outDir.mkdirs()
         val file = File(outDir, name)
@@ -104,6 +115,7 @@ class RoborazziScreenshotsTest {
         val now = System.currentTimeMillis()
         db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 135.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
         db.insert(GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test"))
+        waitForLatestNotNull()
         setUnits(Units.MG_DL)
         setMode(false)
         renderAndSavePng("home_awake_mgdl.png") {
@@ -125,6 +137,7 @@ class RoborazziScreenshotsTest {
     @Test
     fun home_sleep_mgdl() = runBlocking {
         seedReadings(3)
+        waitForLatestNotNull()
         setUnits(Units.MG_DL)
         setMode(true)
         renderAndSavePng("home_sleep_mgdl.png") {
@@ -151,6 +164,7 @@ class RoborazziScreenshotsTest {
         val now = System.currentTimeMillis()
         db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
         db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
+        waitForLatestNotNull()
         setUnits(Units.MMOL_L)
         setMode(false)
         renderAndSavePng("home_awake_mmol_port.png") {
@@ -188,6 +202,25 @@ class RoborazziScreenshotsTest {
                             .padding(16.dp),
                         color = androidx.compose.ui.graphics.Color.Magenta
                     )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun home_awake_76_mgdl() = runBlocking {
+        seedReadings(hours = 3)
+        val db = AppDatabase.get(context).glucoseDao()
+        val now = System.currentTimeMillis()
+        db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
+        waitForLatestNotNull()
+        setUnits(Units.MG_DL)
+        setMode(false)
+        renderAndSavePng("home_awake_76_mgdl.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    HomeScreen(onOpenSettings = {})
                 }
             }
         }
