@@ -93,27 +93,50 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+        Text(
+            "Undead In Bed",
+            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.headlineLarge
+        )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
                 // High-contrast, large digits readable at distance
                 Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
                 Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
             }
-            Button(onClick = onOpenSettings) { Text("Settings") }
+            Button(
+                onClick = onOpenSettings,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Settings") }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = {
+            Button(
+                onClick = {
                 scope.launch {
                     modeRepo.setMode(AppMode.SLEEP, ModeTrigger.BUTTON)
                     settingsRepo.update { it[SettingsKeys.sleepMode] = true }
                 }
-            }) { Text("Good Night") }
-            Button(onClick = {
+            },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Good Night") }
+            Button(
+                onClick = {
                 scope.launch {
                     modeRepo.setMode(AppMode.AWAKE, ModeTrigger.BUTTON)
                     settingsRepo.update { it[SettingsKeys.sleepMode] = false }
                 }
-            }) { Text("Good Morning") }
+            },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Good Morning") }
         }
         Box(
             modifier = Modifier
@@ -132,7 +155,13 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(3, 6, 12, 24).forEach { h ->
-                Button(onClick = { hours = h }) { Text("${h}h") }
+                Button(
+                    onClick = { hours = h },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("${h}h") }
             }
         }
         Spacer(Modifier.weight(1f))

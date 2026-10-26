@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.ui.theme.G7Theme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontFamily
 
 object AlarmScreens {
     @Composable
@@ -33,10 +35,18 @@ object AlarmScreens {
                 Text("Press and hold to dismiss", color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
                 Box(
                     modifier = Modifier
-                        .padding(top = 48.dp),
+                        .padding(top = 48.dp)
+                        .background(color = Color(0xFFE5E5E5), shape = RoundedCornerShape(12.dp))
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("HOLD", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text(
+                        "HOLD",
+                        // Plain, high-contrast text (no decorative font)
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
                 }
             }
         }
