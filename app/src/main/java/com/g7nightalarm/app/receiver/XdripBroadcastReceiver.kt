@@ -56,6 +56,10 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
                     "BG_ESTIMATE received mgdl=$mgdl ts=$ts slopePerMin=$slopePerMin updatedLastAt=${ClockHolder.nowMs()} insertRowId=$rowId"
                 )
             } catch (_: Throwable) {}
+            // Proactively poke the service to evaluate now to reduce timing/race flakiness
+            try {
+                context.sendBroadcast(Intent(com.g7nightalarm.app.service.MonitorService.ACTION_BG_UPDATED))
+            } catch (_: Throwable) {}
         }
     }
 

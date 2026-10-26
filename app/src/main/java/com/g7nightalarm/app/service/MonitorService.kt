@@ -60,6 +60,24 @@ class MonitorService : Service() {
     private lateinit var modeRepo: ModeRepository
     private lateinit var tts: TtsManager
     private var voice: VoiceKeywordListener? = null
+    private val bgUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_BG_UPDATED) {
+                scope.launch {
+                    try {
+                        val readings = db.glucoseDao().latest2()
+                        val latest = readings.getOrNull(0)
+                        val prev = readings.getOrNull(1)
+                        val s = settings.flow.first()
+                        val evalNow = if (s.lastReadingAtMs > 0L) ClockHolder.nowMs() else System.currentTimeMillis()
+                        val event = evaluator.evaluate(latest, prev, evalNow, s)
+                        handleAlarmEvent(event, latest)
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+        }
+    }
     @Volatile private var alarmActive: Boolean = false
     @Volatile private var awakeAlarmType: String? = null
     private val alarmStateReceiver = object : BroadcastReceiver() {
@@ -92,9 +110,12 @@ class MonitorService : Service() {
         scheduleAutoSleep()
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(bgUpdateReceiver, IntentFilter(ACTION_BG_UPDATED), Context.RECEIVER_NOT_EXPORTED)
         } else {
             @Suppress("DEPRECATION")
             registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED))
+            @Suppress("DEPRECATION")
+            registerReceiver(bgUpdateReceiver, IntentFilter(ACTION_BG_UPDATED))
         }
     }
 
@@ -313,6 +334,7 @@ class MonitorService : Service() {
         pollingJob?.cancel()
         scope.cancel()
         unregisterReceiver(alarmStateReceiver)
+        try { unregisterReceiver(bgUpdateReceiver) } catch (_: Throwable) {}
         voice?.stop()
         super.onDestroy()
     }
@@ -321,6 +343,7 @@ class MonitorService : Service() {
 
     companion object {
         private const val MONITOR_NOTIF_ID = 42
+        const val ACTION_BG_UPDATED = "com.g7nightalarm.BG_UPDATED"
         private val mgdlFormat = DecimalFormat("###0.#")
         private val mmolFormat = DecimalFormat("##0.0")
         private fun format(v: Double) = mgdlFormat.format(v)
