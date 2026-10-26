@@ -99,7 +99,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .padding(12.dp)
         ) {
             GlucoseChart(
-                history = history,
+                history = computeChartSeries(history, latest),
                 low = UnitsUtil.convertThreshold(80.0, settings.units),
                 urgentLow = UnitsUtil.convertThreshold(70.0, settings.units),
                 high = UnitsUtil.convertThreshold(250.0, settings.units),
@@ -146,9 +146,7 @@ private fun GlucoseChart(
             val maxT = times.max()
             val spanT = (maxT - minT).coerceAtLeast(1L)
             val path = Path()
-            // Deduplicate consecutive identical timestamps to avoid zigzags at the right edge
-            val deduped = history.sortedBy { it.timestamp }.distinctBy { it.timestamp }
-            deduped.forEachIndexed { idx, r ->
+            history.forEachIndexed { idx, r ->
                 val x = ((r.timestamp - minT).toFloat() / spanT.toFloat()).coerceIn(0f, 1f) * w
                 val y = yFor(if (units == Units.MG_DL) r.mgdl else r.mgdl / 18.0)
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
@@ -160,4 +158,30 @@ private fun GlucoseChart(
 
 private val mgdlFormat = DecimalFormat("###0.#")
 private fun format(v: Double) = mgdlFormat.format(v)
+
+@androidx.annotation.VisibleForTesting
+internal fun computeChartSeries(
+    rawHistory: List<com.g7nightalarm.app.data.GlucoseReading>,
+    latest: com.g7nightalarm.app.data.GlucoseReading?
+): List<com.g7nightalarm.app.data.GlucoseReading> {
+    if (rawHistory.isEmpty() && latest == null) return emptyList()
+    // Sort strictly by timestamp
+    val sorted = rawHistory
+        .filter { it.mgdl > 0.0 }
+        .sortedBy { it.timestamp }
+    // For duplicate timestamps, keep the last value to align with what header shows as "latest"
+    val byTs = java.util.LinkedHashMap<Long, com.g7nightalarm.app.data.GlucoseReading>()
+    sorted.forEach { byTs[it.timestamp] = it }
+    var out = byTs.values.toList()
+    // Ensure the last point matches the displayed latest reading when available
+    if (latest != null && latest.mgdl > 0.0) {
+        if (out.isEmpty() || latest.timestamp > out.last().timestamp) {
+            out = out + latest
+        } else if (latest.timestamp == out.last().timestamp) {
+            // Replace last with latest value if timestamps are equal
+            out = out.dropLast(1) + latest
+        }
+    }
+    return out
+}
 
