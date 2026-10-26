@@ -331,7 +331,6 @@ class AlarmController(private val context: Context) {
     fun startAwakeMusicFromUri(volumePercent: Int, uri: Uri) {
         stopAwakeChime()
         stopMedia()
-        forceAlarmVolumePercent(volumePercent)
         val mp = MediaPlayer()
         mediaPlayer = mp
         try {
@@ -345,6 +344,8 @@ class AlarmController(private val context: Context) {
             mp.setOnPreparedListener {
                 it.start()
                 isMusicPlaying = true
+                // Apply volume once playback begins to ensure focus
+                forceAlarmVolumePercent(volumePercent)
             }
             mp.setOnCompletionListener { isMusicPlaying = false }
             mp.prepareAsync()
@@ -357,7 +358,6 @@ class AlarmController(private val context: Context) {
         // Generate simple sine melody for "Swing Low, Sweet Chariot"
         stopAwakeChime()
         stopMedia()
-        forceAlarmVolumePercent(volumePercent)
         val sampleRate = 44100
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
@@ -375,6 +375,8 @@ class AlarmController(private val context: Context) {
         val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
         at.play()
         audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
         isMusicPlaying = true
         audioThread = thread(start = true, isDaemon = true, name = "SwingLowMelody") {
             try {
@@ -433,7 +435,6 @@ class AlarmController(private val context: Context) {
         // Original 70s-funk-inspired loop "Going Up" (~125 BPM), clavinet stabs + syncopated bass
         stopAwakeChime()
         stopMedia()
-        forceAlarmVolumePercent(volumePercent)
         val sampleRate = 44100
         val bpm = 125.0
         val secPerBeat = 60.0 / bpm
@@ -456,6 +457,8 @@ class AlarmController(private val context: Context) {
         val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
         at.play()
         audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
         isMusicPlaying = true
         audioThread = thread(start = true, isDaemon = true, name = "GoingUpLoop") {
             try {
@@ -572,7 +575,6 @@ class AlarmController(private val context: Context) {
         // Original 80s synth-pop loop "Lost Connection" (~130 BPM), gated drums + bright pads
         stopAwakeChime()
         stopMedia()
-        forceAlarmVolumePercent(volumePercent)
         val sampleRate = 44100
         val bpm = 130.0
         val secPerBeat = 60.0 / bpm
@@ -595,6 +597,8 @@ class AlarmController(private val context: Context) {
         val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
         at.play()
         audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
         isMusicPlaying = true
         audioThread = thread(start = true, isDaemon = true, name = "LostConnectionLoop") {
             try {
