@@ -96,8 +96,9 @@ class SettingsRepository(private val context: Context) {
     val flow: Flow<SettingsState> = context.dataStore.data.map { prefs ->
         SettingsState(
             thresholds = Thresholds(
-                urgentLow = prefs[SettingsKeys.urgentLow] ?: 55.0,
-                low = prefs[SettingsKeys.low] ?: 70.0,
+                // Defaults aligned with spec: urgent <70, low band ≤80
+                urgentLow = prefs[SettingsKeys.urgentLow] ?: 70.0,
+                low = prefs[SettingsKeys.low] ?: 80.0,
                 high = prefs[SettingsKeys.high] ?: 250.0,
                 rapidFallRateMgdlPerMin = prefs[SettingsKeys.rapidFall] ?: 2.0,
                 noDataMinutes = prefs[SettingsKeys.noDataMin] ?: 20
