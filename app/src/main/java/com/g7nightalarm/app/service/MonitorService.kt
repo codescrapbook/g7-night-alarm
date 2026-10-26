@@ -185,6 +185,11 @@ class MonitorService : Service() {
                 }
                 // Start low warning chime if not already active; do not reset an in-progress chime
                 if (awakeAlarmType != AlarmActionReceiver.TYPE_LOW_WARN) {
+                    // If any full alarm or music/ramp is active, stop it before starting the low-band chime.
+                    // An in-band reading must never escalate to urgent.
+                    alarmController.stopAlarm()
+                    alarmController.stopAwakeMusic()
+                    alarmController.stopAwakeChime()
                     startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
                     alarmController.startAwakeChimeLowWarning(awakeVol)
                     awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
