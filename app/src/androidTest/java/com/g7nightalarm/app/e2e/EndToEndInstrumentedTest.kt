@@ -106,19 +106,12 @@ class EndToEndInstrumentedTest {
         try { device.executeShellCommand("wm dismiss-keyguard") } catch (_: Throwable) {}
         // Bring our activity to foreground ONLY if our package is not already foreground.
         if (device.currentPackageName != context.packageName) {
-            // Try a few stronger attempts including HOME to clear overlays
-            repeat(5) {
-                try { device.pressHome() } catch (_: Throwable) {}
+            repeat(2) {
                 try { device.executeShellCommand("am start -W -n ${context.packageName}/com.g7nightalarm.app.ui.MainActivity") } catch (_: Throwable) {}
-                try {
-                    context.startActivity(
-                        Intent(context, MainActivity::class.java)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    )
-                } catch (_: Throwable) {}
-                device.wait(Until.hasObject(By.pkg(context.packageName)), 8_000)
+                try { context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) {}
+                device.wait(Until.hasObject(By.pkg(context.packageName)), 5_000)
                 if (device.currentPackageName == context.packageName) return@repeat
-                try { Thread.sleep(400) } catch (_: Throwable) {}
+                try { Thread.sleep(300) } catch (_: Throwable) {}
             }
         }
         device.waitForIdle()
