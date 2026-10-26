@@ -125,3 +125,4 @@ MIT License — see the `LICENSE` file at the repo root. Any third‑party model
 # New repo
 
 This repo was created by a Cursor cloud agent.
+\nCI: retrigger to shake flaky API 34 noData test (#40301012677)
