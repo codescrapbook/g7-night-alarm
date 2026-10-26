@@ -65,9 +65,11 @@ class RoborazziScreenshotsTest {
         activity.setContent {
             content()
         }
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-        try { Thread.sleep(50) } catch (_: Throwable) {}
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        // Give Room flows and Compose time to emit and recompose before capture
+        repeat(8) {
+            ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+            try { Thread.sleep(50) } catch (_: Throwable) {}
+        }
         outDir.mkdirs()
         val file = File(outDir, name)
         val bitmap = activity.window.decorView.drawToBitmap()

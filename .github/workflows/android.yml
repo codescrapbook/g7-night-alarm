@@ -142,6 +142,18 @@ jobs:
             chmod +x gradlew
             ./gradlew --no-daemon assembleDebug assembleAndroidTest
             adb devices
+            # Helper to wait until our package is foreground before a screencap
+            wait_pkg() {
+              PKG="com.g7nightalarm.app.debug"
+              for i in $(seq 1 30); do
+                if adb shell dumpsys activity activities 2>/dev/null | grep -q "topResumedActivity.*$PKG"; then return 0; fi
+                if adb shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG"; then return 0; fi
+                sleep 0.5
+              done
+              echo "App not in foreground; topResumedActivity:"
+              adb shell dumpsys activity activities | sed -n '/Running activities/,$p' | head -n 200 || true
+              return 1
+            }
             # Keep screen awake and unlock before tests
             adb shell settings put system screen_off_timeout 2147483647 || true
             adb shell svc power stayon true || true
@@ -149,6 +161,7 @@ jobs:
             adb shell wm dismiss-keyguard || true
             # Proactively launch the app activity so Espresso starts with a RESUMED activity
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.MainActivity || true
+            wait_pkg || exit 1
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
@@ -164,20 +177,25 @@ jobs:
             adb pull /sdcard/Pictures/g7-night-alarm artifacts/screenshots/api${{ matrix.api-level }} || true
             # Curated screenshots via debug ScreenshotActivity
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mgdl || true
-            sleep 2
+            wait_pkg || exit 1
+            sleep 1
             adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mgdl.png || true
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_sleep_mgdl || true
-            sleep 2
+            wait_pkg || exit 1
+            sleep 1
             adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_sleep_mgdl.png || true
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mmol_port || true
-            sleep 2
+            wait_pkg || exit 1
+            sleep 1
             adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/home_awake_mmol_port.png || true
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen settings || true
-            sleep 2
+            wait_pkg || exit 1
+            sleep 1
             adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/settings.png || true
             # Urgent alarm full-screen
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.alarm.AlarmActivity || true
-            sleep 2
+            wait_pkg || exit 1
+            sleep 1
             adb exec-out screencap -p > artifacts/screenshots/api${{ matrix.api-level }}/alarm_urgent.png || true
       - name: Upload connected test results
         if: always()
