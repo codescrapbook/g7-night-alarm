@@ -156,10 +156,10 @@ jobs:
               adb shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG" && break
               sleep 0.5
             done
+            # Print state if still not foreground (test code will assert foreground when capturing its own screenshots)
             adb shell dumpsys activity activities 2>/dev/null | grep -q "topResumedActivity.*$PKG" || {
-              echo "App not in foreground; topResumedActivity:"
+              echo "Warning: app not confirmed foreground; continuing. topResumedActivity follows:"
               adb shell dumpsys activity activities | sed -n '/Running activities/,$p' | head -n 200 || true
-              exit 1
             }
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0

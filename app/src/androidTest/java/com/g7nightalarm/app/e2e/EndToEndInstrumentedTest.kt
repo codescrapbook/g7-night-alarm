@@ -111,6 +111,12 @@ class EndToEndInstrumentedTest {
             } catch (_: Throwable) { }
         }
         device.waitForIdle()
+        // Verify the app is foreground; if not, fail the test to prevent false screenshots
+        Assert.assertEquals(
+            "Expected our package to be in the foreground before taking a screenshot.",
+            context.packageName,
+            device.currentPackageName
+        )
         var captured = false
         // Prefer UiAutomation screenshot to ensure foreground content
         try {
