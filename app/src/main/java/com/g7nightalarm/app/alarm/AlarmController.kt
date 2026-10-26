@@ -37,6 +37,7 @@ class AlarmController(private val context: Context) {
         @Volatile private var rampJob: Thread? = null
         private val rampLock = Any()
         @Volatile private var rampCancelled: Boolean = false
+        fun isRampActive(): Boolean = rampJob != null
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null

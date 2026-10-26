@@ -148,6 +148,10 @@ class EndToEndInstrumentedTest {
         MonitorService.start(context)
         // Ensure main activity is launched and in RESUMED state
         androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
+        // Clear glucose DB to avoid cross-test latest reading interference
+        runBlocking {
+            com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao().prune(Long.MAX_VALUE)
+        }
         // Wake emulator if needed
         try {
             device.wakeUp()

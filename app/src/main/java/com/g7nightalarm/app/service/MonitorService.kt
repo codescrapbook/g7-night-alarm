@@ -226,7 +226,8 @@ class MonitorService : Service() {
                 }
                 // Start low-warning chime when allowed by priority policy:
                 // urgent/ramp > low-warn > high > signal-lost. Do not downgrade over LOW/LOW_WARN.
-                if (com.g7nightalarm.app.alarm.AwakeLowBandPolicy.shouldStartLowWarnChime(
+                if (!com.g7nightalarm.app.alarm.AlarmController.isRampActive() &&
+                    com.g7nightalarm.app.alarm.AwakeLowBandPolicy.shouldStartLowWarnChime(
                         currentType = awakeAlarmType,
                         mgdl = latest.mgdl,
                         warnMin = lwMin,
