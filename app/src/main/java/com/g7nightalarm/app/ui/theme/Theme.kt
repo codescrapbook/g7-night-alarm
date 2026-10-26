@@ -2,8 +2,12 @@ package com.g7nightalarm.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.g7nightalarm.app.R
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFF5DBB63),       // swampy green
@@ -17,10 +21,20 @@ private val DarkColors = darkColorScheme(
     error = Color(0xFFC62828)          // blood red accents
 )
 
+private val UndeadHeaders = FontFamily(Font(resId = R.font.creepster_regular))
+private val DefaultTypography = Typography()
+private val UndeadTypography = Typography(
+    displayLarge = DefaultTypography.displayLarge, // keep numeric header plain
+    headlineLarge = DefaultTypography.headlineLarge.copy(fontFamily = UndeadHeaders),
+    headlineMedium = DefaultTypography.headlineMedium.copy(fontFamily = UndeadHeaders),
+    titleLarge = DefaultTypography.titleLarge.copy(fontFamily = UndeadHeaders)
+)
+
 @Composable
 fun G7Theme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColors,
+        typography = UndeadTypography,
         content = content
     )
 }
