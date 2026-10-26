@@ -170,6 +170,7 @@ class MonitorService : Service() {
                 }
                 return@launch
             }
+            try { android.util.Log.i("MonitorService", "handleAlarmEvent type=${event::class.simpleName} latestMgdl=${latest?.mgdl} awakeType=$awakeAlarmType") } catch (_: Throwable) {}
             // Awake mode behavior with band and snooze
             val now = ClockHolder.nowMs()
             val awakeVol = s.awakeVolumePercent
@@ -186,11 +187,10 @@ class MonitorService : Service() {
                 if (suppressed) {
                     return@launch
                 }
-                // Policy: only start low-warning chime when no other awake alarm is active.
-                // Never downgrade an active urgent/ramp/high/signal alarm on an in-band reading.
-                if (awakeAlarmType == null &&
-                    com.g7nightalarm.app.alarm.AwakeLowBandPolicy.shouldStartLowWarnChime(
-                        currentType = null,
+                // Start low-warning chime when allowed by priority policy:
+                // urgent/ramp > low-warn > high > signal-lost. Do not downgrade over LOW/LOW_WARN.
+                if (com.g7nightalarm.app.alarm.AwakeLowBandPolicy.shouldStartLowWarnChime(
+                        currentType = awakeAlarmType,
                         mgdl = latest.mgdl,
                         warnMin = lwMin,
                         warnMax = lwMax
