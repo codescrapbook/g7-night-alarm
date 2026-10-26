@@ -518,8 +518,7 @@ class EndToEndInstrumentedTest {
             Thread.sleep(250)
         }
         Assert.assertTrue("Expected lastLowWarnClearAt to be recorded after CLEAR.", lowWarnClearRecorded)
-        // Simulate 20 minutes since clear (within 30-min window)
-        clockReset()
+        // Simulate 20 minutes since clear (within 30-min window) — advance from current offset
         clockAdvance(20L * 60L * 1000L)
         Thread.sleep(300)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
@@ -584,8 +583,7 @@ class EndToEndInstrumentedTest {
             Thread.sleep(250)
         }
         Assert.assertTrue("Expected lastLowClearAt to be recorded after CLEAR.", clearRecorded)
-        // Within 15 minutes it should be suppressed
-        clockReset()
+        // Within 15 minutes it should be suppressed — advance from current offset
         clockAdvance(10L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Re-trigger sub-70 low
