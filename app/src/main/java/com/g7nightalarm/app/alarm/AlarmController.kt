@@ -760,8 +760,12 @@ class AlarmController(private val context: Context) {
                     out[i] = (s * 0.8 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
                     playedMs += (1000.0 / sampleRate).toInt()
                 }
-                at.write(out, 0, samples)
-                return true
+                return try {
+                    at.write(out, 0, samples)
+                    true
+                } catch (_: Throwable) {
+                    false
+                }
             }
             if (loop) {
                 while (!Thread.currentThread().isInterrupted) {
@@ -795,7 +799,7 @@ class AlarmController(private val context: Context) {
         // Best-effort to ensure the volume actually takes effect on newer Android
         // where async or throttling may delay application.
         var attempts = 0
-        while (attempts < 6) {
+        while (attempts < 20) {
             am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
             val now = am.getStreamVolume(AudioManager.STREAM_ALARM)
             if (now == set) break
@@ -806,7 +810,7 @@ class AlarmController(private val context: Context) {
                         "possible causes: DND policy, delayed audio focus, vendor throttling. Retrying shortly."
                 )
             } catch (_: Throwable) {}
-            try { Thread.sleep(100) } catch (_: Throwable) {}
+            try { Thread.sleep(150) } catch (_: Throwable) {}
             attempts++
         }
         try {
@@ -828,6 +832,18 @@ class AlarmController(private val context: Context) {
                         )
                     } catch (_: Throwable) {}
                     am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                }
+                // Additional guarded rechecks to fight late clobbers on API 34 emulators
+                var i = 0
+                while (i < 4) {
+                    Thread.sleep(300)
+                    if (ownerAtSet != currentVolumeOwnerToken) break
+                    val vv = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                    if (vv != set) {
+                        try { android.util.Log.w("AlarmController", "STREAM_ALARM recheck[$i] saw $vv; reapplying") } catch (_: Throwable) {}
+                        am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                    }
+                    i++
                 }
             } catch (_: Throwable) {}
         }
