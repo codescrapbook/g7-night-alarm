@@ -64,8 +64,11 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
     }
 
     private fun handleNoData(context: Context) {
-        // Could set a flag or let service detect staleness
+        // Let the service detect staleness immediately
         Log.w(TAG, "xDrip+ reported BgEstimateNoData")
+        try {
+            context.sendBroadcast(Intent(com.g7nightalarm.app.service.MonitorService.ACTION_BG_UPDATED))
+        } catch (_: Throwable) {}
     }
 
     companion object {

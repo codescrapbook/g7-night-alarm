@@ -442,12 +442,17 @@ class EndToEndInstrumentedTest {
         // Advance fake clock by 31 minutes to trip signal-lost (>=30)
         clockAdvance(31L * 60L * 1000L)
         // Nudge evaluation: insert a no-op reading row (does not update lastReadingAt) to tick latestFlow,
-        // then also poke the service to evaluate immediately using the updated monotonic now
+        // then also send an explicit xDrip NoData broadcast (which prompts the service to evaluate now)
         runBlocking {
             val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
             dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = nextReadingTs(), mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
         }
-        context.sendBroadcast(Intent(MonitorService.ACTION_BG_UPDATED))
+        context.sendBroadcast(
+            Intent(XdripBroadcastReceiver.ACTION_BG_NO_DATA).apply {
+                setPackage(context.packageName)
+                component = ComponentName(context, XdripBroadcastReceiver::class.java)
+            }
+        )
         var ok = false
         repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
