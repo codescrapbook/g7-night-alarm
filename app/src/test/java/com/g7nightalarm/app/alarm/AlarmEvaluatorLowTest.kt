@@ -22,7 +22,8 @@ class AlarmEvaluatorLowTest {
             nowMs = System.currentTimeMillis(),
             settings = s
         )
-        assertTrue(event is AlarmEvent.Low)
+        // With urgentLow default at 70 mg/dL, 65 mg/dL is an urgent-low trigger
+        assertTrue(event is AlarmEvent.UrgentLow)
     }
 }
 
