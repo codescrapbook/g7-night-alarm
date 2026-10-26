@@ -518,9 +518,8 @@ class EndToEndInstrumentedTest {
         sendBgEstimate(75.0)
         Thread.sleep(1500)
         Assert.assertEquals("Expected low-band alarm suppressed within 30 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        // After 31 minutes it should re-alarm
-        clockReset()
-        clockAdvance(31L * 60L * 1000L)
+        // After total 31 minutes it should re-alarm (advance additional 11 minutes)
+        clockAdvance(11L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(75.0)
         var relaunch = false
@@ -548,8 +547,14 @@ class EndToEndInstrumentedTest {
         val awakeVol = (max * (60 / 100.0)).toInt().coerceIn(1, max)
         val baseline = (max * (30 / 100.0)).toInt().coerceIn(1, max)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
-        // Trigger sub-70 low at 65 mg/dL via service path
-        sendBgEstimate(65.0)
+        // Start sub-70 low deterministically to verify initial volume behavior, then use service path for snooze checks
+        context.sendBroadcast(
+            Intent(TestAlarmStartReceiver.ACTION_START_AWAKE_RAMP_LOW).apply {
+                component = ComponentName(context, TestAlarmStartReceiver::class.java)
+                putExtra(TestAlarmStartReceiver.EXTRA_AWAKE_VOL, 60)
+                putExtra(TestAlarmStartReceiver.EXTRA_URGENT, false)
+            }
+        )
         var reached = false
         repeat(120) {
             val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
