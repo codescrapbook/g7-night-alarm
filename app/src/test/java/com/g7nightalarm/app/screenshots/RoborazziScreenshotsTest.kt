@@ -42,7 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [33])
+@Config(sdk = [33], qualifiers = "w1280dp-h800dp-land-mdpi")
 @GraphicsMode(NATIVE)
 class RoborazziScreenshotsTest {
 
@@ -98,7 +98,12 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun home_awake_mgdl() = runBlocking {
-        seedReadings(24)
+        // Seed ~3 hours ending at a current value 142 mg/dL with slight rise
+        seedReadings(hours = 3)
+        val db = AppDatabase.get(context).glucoseDao()
+        val now = System.currentTimeMillis()
+        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 135.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test"))
         setUnits(Units.MG_DL)
         setMode(false)
         renderAndSavePng("home_awake_mgdl.png") {
@@ -119,7 +124,7 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun home_sleep_mgdl() = runBlocking {
-        seedReadings(24)
+        seedReadings(3)
         setUnits(Units.MG_DL)
         setMode(true)
         renderAndSavePng("home_sleep_mgdl.png") {
@@ -139,8 +144,13 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
+    @Config(qualifiers = "w800dp-h1280dp-port-mdpi")
     fun home_awake_mmol_port() = runBlocking {
         seedReadings(3)
+        val db = AppDatabase.get(context).glucoseDao()
+        val now = System.currentTimeMillis()
+        db.insert(GlucoseReading(timestamp = now - 10 * 60_000L, mgdl = 85.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -1.4, slopeName = "↘", source = "test"))
         setUnits(Units.MMOL_L)
         setMode(false)
         renderAndSavePng("home_awake_mmol_port.png") {

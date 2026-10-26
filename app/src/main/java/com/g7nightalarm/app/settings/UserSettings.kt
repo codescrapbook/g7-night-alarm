@@ -19,8 +19,9 @@ val Context.dataStore by preferencesDataStore(SETTINGS_NAME)
 enum class Units { MG_DL, MMOL_L }
 
 data class Thresholds(
-    val urgentLow: Double = 55.0,
-    val low: Double = 70.0,
+    // Spec: urgent below 70, low band alert at <=80
+    val urgentLow: Double = 70.0,
+    val low: Double = 80.0,
     val high: Double = 250.0,
     val rapidFallRateMgdlPerMin: Double = 3.0, // mg/dL per 5 min ~ 0.6/min, this is per min
     val noDataMinutes: Int = 20

@@ -71,8 +71,9 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold)
-                Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color.Gray)
+                // High-contrast, large digits readable at distance
+                Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
+                Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
             }
             Button(onClick = onOpenSettings) { Text("Settings") }
         }
@@ -97,7 +98,13 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .background(Color(0xFF181818), RoundedCornerShape(16.dp))
                 .padding(12.dp)
         ) {
-            GlucoseChart(history = history, low = UnitsUtil.convertThreshold(70.0, settings.units), urgentLow = UnitsUtil.convertThreshold(55.0, settings.units), high = UnitsUtil.convertThreshold(250.0, settings.units), units = settings.units)
+            GlucoseChart(
+                history = history,
+                low = UnitsUtil.convertThreshold(80.0, settings.units),
+                urgentLow = UnitsUtil.convertThreshold(70.0, settings.units),
+                high = UnitsUtil.convertThreshold(250.0, settings.units),
+                units = settings.units
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(3, 6, 12, 24).forEach { h ->

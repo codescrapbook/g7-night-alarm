@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -97,25 +99,28 @@ fun SettingsScreen(onBack: () -> Unit) {
     } else null
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(urgentLow, onValueChange = { urgentLow = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Urgent low (mg/dL)") })
-            OutlinedTextField(low, onValueChange = { low = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Low (mg/dL)") })
-            OutlinedTextField(high, onValueChange = { high = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("High (mg/dL)") })
+            OutlinedTextField(urgentLow, onValueChange = { urgentLow = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Urgent low (mg/dL)") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(low, onValueChange = { low = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Low (mg/dL)") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(high, onValueChange = { high = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("High (mg/dL)") }, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(rapidFall, onValueChange = { rapidFall = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Rapid fall (mg/dL/min)") })
-            OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes") })
+            OutlinedTextField(rapidFall, onValueChange = { rapidFall = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Rapid fall (mg/dL/min)") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes") }, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Allow snooze")
                 Switch(checked = allowSnooze, onCheckedChange = { allowSnooze = it })
             }
-            OutlinedTextField(snoozeMin, onValueChange = { snoozeMin = it.filter { ch -> ch.isDigit() } }, label = { Text("Snooze minutes") })
+            OutlinedTextField(snoozeMin, onValueChange = { snoozeMin = it.filter { ch -> ch.isDigit() } }, label = { Text("Snooze minutes") }, modifier = Modifier.weight(1f))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -226,8 +231,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             Button(onClick = {
                 scope.launch {
                     repo.update { p ->
-                        p[SettingsKeys.urgentLow] = urgentLow.toDoubleOrNull() ?: 55.0
-                        p[SettingsKeys.low] = low.toDoubleOrNull() ?: 70.0
+                        p[SettingsKeys.urgentLow] = urgentLow.toDoubleOrNull() ?: 70.0
+                        p[SettingsKeys.low] = low.toDoubleOrNull() ?: 80.0
                         p[SettingsKeys.high] = high.toDoubleOrNull() ?: 250.0
                         p[SettingsKeys.rapidFall] = rapidFall.toDoubleOrNull() ?: 2.0
                         p[SettingsKeys.noDataMin] = noData.toIntOrNull() ?: 20
