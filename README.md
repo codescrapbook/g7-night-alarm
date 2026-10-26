@@ -1,4 +1,4 @@
-G7 Night Alarm (Android, Kotlin/Compose)
+Undead In Bed (Android, Kotlin/Compose)
 =======================================
 
 Purpose: A backup, tablet‑friendly glucose alarm for Dexcom G7 users whose official alarms may be too quiet or unreliable overnight. This app listens to xDrip+ broadcasts (not the Dexcom sensor directly), stores and charts glucose, and, on alarm, can play a piercing full‑volume alarm that continues until deliberately dismissed.
@@ -18,7 +18,7 @@ What it does
   - Primary: Local broadcast `com.eveningoutpost.dexdrip.BgEstimate`
   - Fallback: Local web server `http://127.0.0.1:17580/sgv.json` (if enabled in xDrip+)
 - Stores readings locally (Room). Tablet‑friendly UI with: large current value, trend, minutes since last reading, and a 3h/6h/12h/24h chart with high/low bands.
-- Configurable thresholds (defaults): urgent low 55 mg/dL, low 70, high 250, rapid fall rate, and no‑data alarm (default 20 minutes). Units mg/dL (mmol/L optional UI planned).
+- Configurable thresholds (defaults): urgent low 70 mg/dL, low 80, high 250, rapid fall rate, and no‑data alarm (default 30 minutes). Units mg/dL (mmol/L optional UI planned).
 - Sleep Mode / Awake Mode:
   - Big buttons: “Good Night” (Sleep on) and “Good Morning” (Sleep off). Mode is shown prominently and persists across restarts.
   - Voice commands (optional; offline): “good night” / “good morning” using Vosk keyword spotting; spoken confirmation via Text‑to‑Speech.

@@ -4,22 +4,42 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:translateX="27"
-        android:translateY="27">
+    <group android:translateX="16" android:translateY="12">
+        <!-- Bed base -->
         <path
-            android:fillColor="#BB86FC"
-            android:pathData="M54,27a27,27 0 1,1 -54,0a27,27 0 1,1 54,0z" />
+            android:fillColor="#2E3D26"
+            android:pathData="M0,70 L76,70 L76,80 L0,80 Z" />
+        <!-- Zombie hand rising from bed -->
+        <path
+            android:fillColor="#6BAA64"
+            android:strokeWidth="2"
+            android:strokeColor="#2C5E2A"
+            android:pathData="M38,35 C36,28 46,26 46,33 L46,60 L40,60 L40,42 C38,44 36,41 38,35 Z" />
+        <!-- Stitches on hand -->
         <path
             android:fillColor="#00000000"
-            android:strokeWidth="6"
-            android:strokeColor="#03DAC5"
-            android:pathData="M10,36 L20,30 L30,33 L40,24 L50,28" />
+            android:strokeWidth="2"
+            android:strokeColor="#C62828"
+            android:pathData="M42,40 L34,44 M42,48 L34,52" />
+        <!-- Skull pillow -->
+        <path
+            android:fillColor="#E6E6E6"
+            android:pathData="M10,50 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M15,50 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+        <path
+            android:fillColor="#000000"
+            android:pathData="M21,50 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
         <path
             android:fillColor="#00000000"
-            android:strokeWidth="8"
-            android:strokeColor="#FF5252"
-            android:pathData="M12,20 L42,20" />
+            android:strokeWidth="2"
+            android:strokeColor="#C62828"
+            android:pathData="M18,56 L22,56" />
+        <!-- Drips -->
+        <path
+            android:fillColor="#8E24AA"
+            android:pathData="M64,68 C66,64 70,66 70,70 L70,80 L64,80 Z" />
     </group>
 </vector>
 
