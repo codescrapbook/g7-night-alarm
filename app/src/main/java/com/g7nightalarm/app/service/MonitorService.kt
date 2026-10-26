@@ -180,12 +180,10 @@ class MonitorService : Service() {
                 if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)) {
                     return@launch
                 }
-                // Start low warning chime if not already active
-                if (awakeAlarmType != AlarmActionReceiver.TYPE_LOW_WARN) {
-                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
-                    alarmController.startAwakeChimeLowWarning(awakeVol)
-                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
-                }
+                // Start or restart low warning chime when within band and not suppressed
+                startAwakeNotification(AlarmActionReceiver.TYPE_LOW_WARN, "Low warning", "Glucose ${latest.mgdl.toInt()} mg/dL in warning band")
+                alarmController.startAwakeChimeLowWarning(awakeVol)
+                awakeAlarmType = AlarmActionReceiver.TYPE_LOW_WARN
                 return@launch
             }
             when (event) {
