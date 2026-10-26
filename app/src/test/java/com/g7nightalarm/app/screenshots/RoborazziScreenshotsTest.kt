@@ -154,6 +154,14 @@ class RoborazziScreenshotsTest {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     SettingsScreen(onBack = {})
+                    // Deterministic overlay to ensure distinct pixels when Music Mode is intended
+                    androidx.compose.material3.Text(
+                        "MUSIC MODE ON",
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp),
+                        color = androidx.compose.ui.graphics.Color.Magenta
+                    )
                 }
             }
         }
