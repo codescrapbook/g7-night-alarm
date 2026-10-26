@@ -28,8 +28,8 @@ class AlarmEvaluator {
             // Monotonic basis: nowMs and lastAt are both elapsed-time based
             ((nowMs - lastAt) / 60000.0).toInt()
         } else {
-            // Wall-clock fallback when no monotonic arrival time is recorded
-            ((System.currentTimeMillis() - latest.timestamp) / 60000.0).toInt()
+            // Fallback: both values should share the same basis (caller provides nowMs accordingly)
+            ((nowMs - latest.timestamp) / 60000.0).toInt()
         }
         if (ageMin >= settings.thresholds.noDataMinutes) {
             return AlarmEvent.NoData(ageMin)
