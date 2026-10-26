@@ -105,6 +105,13 @@ class RoborazziScreenshotsTest {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
+                    androidx.compose.material3.Text(
+                        "AWAKE",
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                        color = androidx.compose.ui.graphics.Color.Green
+                    )
                 }
             }
         }
@@ -119,6 +126,13 @@ class RoborazziScreenshotsTest {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
+                    androidx.compose.material3.Text(
+                        "SLEEP",
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                        color = androidx.compose.ui.graphics.Color.Cyan
+                    )
                 }
             }
         }
