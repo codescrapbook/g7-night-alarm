@@ -510,6 +510,14 @@ class EndToEndInstrumentedTest {
                 putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN)
             }
         )
+        // Wait until DataStore records the low-warn clear timestamp to avoid race with clock advances
+        var lowWarnClearRecorded = false
+        repeat(20) {
+            val ts = runBlocking { SettingsRepository(context).flow.first().lastLowWarnClearAt }
+            if (ts > 0L) { lowWarnClearRecorded = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected lastLowWarnClearAt to be recorded after CLEAR.", lowWarnClearRecorded)
         // Simulate 20 minutes since clear (within 30-min window)
         clockReset()
         clockAdvance(20L * 60L * 1000L)
