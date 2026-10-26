@@ -424,17 +424,14 @@ class EndToEndInstrumentedTest {
                 // Clear any prior snooze timestamps that could suppress signal lost
                 p[SettingsKeys.lastSignalClearAt] = 0L
                 p[SettingsKeys.lastHighClearAt] = 0L
+                // Backdate last reading arrival so the monotonic staleness path trips >=30 minutes
+                p[SettingsKeys.lastReadingAt] = com.g7nightalarm.app.time.ClockHolder.nowMs() - (31L * 60L * 1000L)
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (50 / 100.0)).toInt().coerceIn(1, max)
         val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
-        val oldTs = System.currentTimeMillis() - 31L * 60L * 1000L
-        runBlocking {
-            dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = oldTs, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
-        }
         var ok = false
         repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
