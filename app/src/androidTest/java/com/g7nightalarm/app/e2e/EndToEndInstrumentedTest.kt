@@ -449,6 +449,14 @@ class EndToEndInstrumentedTest {
         sendBgEstimate(120.0, ts = nextReadingTs())
         // Give service a solid moment to persist lastReadingAt (async IO in receiver)
         Thread.sleep(1000)
+        // Ensure lastReadingAt is recorded before advancing time
+        var haveLastAt = false
+        repeat(20) {
+            val lr = runBlocking { SettingsRepository(context).flow.first().lastReadingAtMs }
+            if (lr > 0L) { haveLastAt = true; return@repeat }
+            Thread.sleep(250)
+        }
+        Assert.assertTrue("Expected lastReadingAt to be recorded after BG_ESTIMATE.", haveLastAt)
         // Advance fake clock by 31 minutes to trip signal-lost (>=30)
         clockAdvance(31L * 60L * 1000L)
         // Nudge evaluation: insert a no-op reading row (does not update lastReadingAt) to tick latestFlow,
