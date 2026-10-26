@@ -210,25 +210,29 @@ class MonitorService : Service() {
                     val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
                     try { android.util.Log.d("MonitorService", "URGENT_LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
                     if (suppressed) return@launch
-                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low (urgent)", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
-                    if (musicEnabled) {
-                        alarmController.startAwakeMusicRampLow(awakeVol, urgent = true, contentUri = lowUri)
-                    } else {
-                        alarmController.startAwakeRampLow(awakeVol, urgent = true)
+                    if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
+                        startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low (urgent)", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
+                        if (musicEnabled) {
+                            alarmController.startAwakeMusicRampLow(awakeVol, urgent = true, contentUri = lowUri)
+                        } else {
+                            alarmController.startAwakeRampLow(awakeVol, urgent = true)
+                        }
+                        awakeAlarmType = AlarmActionReceiver.TYPE_LOW
                     }
-                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW
                 }
                 is AlarmEvent.Low -> {
                     val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
                     try { android.util.Log.d("MonitorService", "LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
                     if (suppressed) return@launch
-                    startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
-                    if (musicEnabled) {
-                        alarmController.startAwakeMusicRampLow(awakeVol, urgent = false, contentUri = lowUri)
-                    } else {
-                        alarmController.startAwakeRampLow(awakeVol, urgent = false)
+                    if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
+                        startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
+                        if (musicEnabled) {
+                            alarmController.startAwakeMusicRampLow(awakeVol, urgent = false, contentUri = lowUri)
+                        } else {
+                            alarmController.startAwakeRampLow(awakeVol, urgent = false)
+                        }
+                        awakeAlarmType = AlarmActionReceiver.TYPE_LOW
                     }
-                    awakeAlarmType = AlarmActionReceiver.TYPE_LOW
                 }
                 is AlarmEvent.High -> {
                     if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastHighClearAt, s.awakeHighRearmMin)) return@launch

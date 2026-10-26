@@ -16,8 +16,14 @@ object AwakeLowBandPolicy {
     ): Boolean {
         val inBand = mgdl in warnMin..warnMax
         if (!inBand) return false
-        // Only when nothing else is active
-        return currentType == null
+        // Start when no alarm is active OR when a lower-priority alarm is active (HIGH or SIGNAL)
+        return when (currentType) {
+            null -> true
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL -> true
+            // Do not start over existing LOW_WARN or LOW (equal or higher)
+            else -> false
+        }
     }
 
     fun isLowType(type: String?): Boolean = type == AlarmActionReceiver.TYPE_LOW

@@ -42,5 +42,27 @@ class AwakeLowBandPolicyTest {
         )
         assertFalse(start)
     }
+
+    @Test
+    fun high_ringing_then_75_starts_low_chime() {
+        val start = AwakeLowBandPolicy.shouldStartLowWarnChime(
+            currentType = AlarmActionReceiver.TYPE_HIGH,
+            mgdl = 75.0,
+            warnMin = 70.0,
+            warnMax = 80.0
+        )
+        assertTrue(start)
+    }
+
+    @Test
+    fun signal_lost_ringing_then_75_starts_low_chime() {
+        val start = AwakeLowBandPolicy.shouldStartLowWarnChime(
+            currentType = AlarmActionReceiver.TYPE_SIGNAL,
+            mgdl = 75.0,
+            warnMin = 70.0,
+            warnMax = 80.0
+        )
+        assertTrue(start)
+    }
 }
 
