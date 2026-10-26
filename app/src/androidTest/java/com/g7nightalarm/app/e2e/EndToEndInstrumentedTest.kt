@@ -90,6 +90,9 @@ class EndToEndInstrumentedTest {
             slopePerMin?.let { putExtra(XdripBroadcastReceiver.EXTRA_BG_SLOPE, it / 60_000.0) } // per ms
             putExtra(XdripBroadcastReceiver.EXTRA_BG_SLOPE_NAME, "Flat")
         }
+        // Use explicit component + package to avoid implicit broadcast drops on API 26+
+        i.setPackage(context.packageName)
+        i.component = ComponentName(context, XdripBroadcastReceiver::class.java)
         context.sendBroadcast(i)
     }
 

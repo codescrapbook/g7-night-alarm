@@ -60,6 +60,15 @@ class MonitorService : Service() {
     private lateinit var modeRepo: ModeRepository
     private lateinit var tts: TtsManager
     private var voice: VoiceKeywordListener? = null
+    // Runtime receiver to ensure implicit xDrip broadcasts are received on API 26+
+    private val xdripReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent ?: return
+            try {
+                com.g7nightalarm.app.receiver.XdripBroadcastReceiver().onReceive(this@MonitorService, intent)
+            } catch (_: Throwable) {}
+        }
+    }
     private val bgUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_BG_UPDATED) {
@@ -110,10 +119,17 @@ class MonitorService : Service() {
         scheduleAutoSleep()
         if (Build.VERSION.SDK_INT >= 33) {
             registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED), Context.RECEIVER_NOT_EXPORTED)
+            // Receive xDrip+ implicit broadcasts even on newer Android where manifest implicit broadcasts are limited
+            registerReceiver(xdripReceiver, IntentFilter(com.g7nightalarm.app.receiver.XdripBroadcastReceiver.ACTION_BG_ESTIMATE), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(xdripReceiver, IntentFilter(com.g7nightalarm.app.receiver.XdripBroadcastReceiver.ACTION_BG_NO_DATA), Context.RECEIVER_NOT_EXPORTED)
             registerReceiver(bgUpdateReceiver, IntentFilter(ACTION_BG_UPDATED), Context.RECEIVER_NOT_EXPORTED)
         } else {
             @Suppress("DEPRECATION")
             registerReceiver(alarmStateReceiver, IntentFilter(ACTION_ALARM_STOPPED))
+            @Suppress("DEPRECATION")
+            registerReceiver(xdripReceiver, IntentFilter(com.g7nightalarm.app.receiver.XdripBroadcastReceiver.ACTION_BG_ESTIMATE))
+            @Suppress("DEPRECATION")
+            registerReceiver(xdripReceiver, IntentFilter(com.g7nightalarm.app.receiver.XdripBroadcastReceiver.ACTION_BG_NO_DATA))
             @Suppress("DEPRECATION")
             registerReceiver(bgUpdateReceiver, IntentFilter(ACTION_BG_UPDATED))
         }
@@ -334,6 +350,7 @@ class MonitorService : Service() {
         scope.cancel()
         unregisterReceiver(alarmStateReceiver)
         try { unregisterReceiver(bgUpdateReceiver) } catch (_: Throwable) {}
+        try { unregisterReceiver(xdripReceiver) } catch (_: Throwable) {}
         voice?.stop()
         super.onDestroy()
     }
