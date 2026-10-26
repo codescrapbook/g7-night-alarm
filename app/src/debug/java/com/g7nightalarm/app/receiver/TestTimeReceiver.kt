@@ -3,7 +3,8 @@ package com.g7nightalarm.app.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.g7nightalarm.app.alarm.AlarmController
+import android.os.SystemClock
+import com.g7nightalarm.app.time.ClockHolder
 
 /**
  * Debug-only receiver to control AlarmController's test clock.
@@ -14,11 +15,12 @@ class TestTimeReceiver : BroadcastReceiver() {
             ACTION_SET_NOW -> {
                 val now = intent.getLongExtra(EXTRA_NOW_MS, -1L)
                 if (now > 0) {
-                    AlarmController.testNowMs = now
+                    val offset = now - SystemClock.elapsedRealtime()
+                    ClockHolder.setDebugOffsetMs(offset)
                 }
             }
             ACTION_CLEAR_NOW -> {
-                AlarmController.testNowMs = null
+                ClockHolder.clearDebugOffset()
             }
         }
     }
