@@ -346,6 +346,8 @@ class EndToEndInstrumentedTest {
         }
         Assert.assertTrue("Expected ramp to start near awake volume.", startVol in awakeVol until max)
         // Midpoint (~2.5 min): expect volume higher than start and less than max
+        // Give the ramp thread a moment to establish its start timestamp before jumping the clock
+        Thread.sleep(600)
         clockAdvance((2 * 60 + 30) * 1000L)
         var midGtStart = false
         var midVal = -1
@@ -439,7 +441,12 @@ class EndToEndInstrumentedTest {
         Thread.sleep(300)
         // Advance fake clock by 31 minutes to trip signal-lost (>=30)
         clockAdvance(31L * 60L * 1000L)
-        // Poke service to evaluate immediately using the updated monotonic now
+        // Nudge evaluation: insert a no-op reading row (does not update lastReadingAt) to tick latestFlow,
+        // then also poke the service to evaluate immediately using the updated monotonic now
+        runBlocking {
+            val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
+            dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = nextReadingTs(), mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
+        }
         context.sendBroadcast(Intent(MonitorService.ACTION_BG_UPDATED))
         var ok = false
         repeat(120) {
