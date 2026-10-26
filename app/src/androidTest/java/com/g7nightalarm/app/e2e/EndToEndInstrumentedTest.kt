@@ -584,9 +584,8 @@ class EndToEndInstrumentedTest {
         sendBgEstimate(65.0)
         Thread.sleep(1500)
         Assert.assertEquals("Expected low <70 suppressed within 15 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
-        // After 16 minutes it should re-alarm
-        clockReset()
-        clockAdvance(16L * 60L * 1000L)
+        // After total 16 minutes it should re-alarm (advance additional 6 minutes)
+        clockAdvance(6L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(65.0)
         var relaunched = false
