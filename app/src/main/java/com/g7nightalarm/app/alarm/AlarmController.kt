@@ -724,9 +724,20 @@ class AlarmController(private val context: Context) {
             am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
             val now = am.getStreamVolume(AudioManager.STREAM_ALARM)
             if (now == set) break
+            try {
+                android.util.Log.w(
+                    "AlarmController",
+                    "STREAM_ALARM volume set did not stick on attempt ${attempts + 1}: now=$now target=$set; " +
+                        "possible causes: DND policy, delayed audio focus, vendor throttling. Retrying shortly."
+                )
+            } catch (_: Throwable) {}
             try { Thread.sleep(100) } catch (_: Throwable) {}
             attempts++
         }
+        try {
+            val finalVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            android.util.Log.i("AlarmController", "STREAM_ALARM set to $finalVol (target=$set) after $attempts attempt(s)")
+        } catch (_: Throwable) {}
     }
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {

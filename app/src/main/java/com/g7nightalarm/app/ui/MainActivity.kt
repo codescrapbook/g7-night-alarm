@@ -26,6 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import com.g7nightalarm.app.settings.SettingsRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import android.content.pm.ApplicationInfo
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +34,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         MonitorService.start(this)
         // Real first-run prompt for voice mic on release builds only (avoid test flakiness)
-        if (!BuildConfig.DEBUG) {
+        val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!isDebuggable) {
             val recordPermLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
             lifecycleScope.launch {
                 try {
