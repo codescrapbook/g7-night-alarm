@@ -38,6 +38,8 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.GraphicsMode.Mode.NATIVE
 import com.g7nightalarm.app.ui.alarm.AlarmActivity
 import com.g7nightalarm.app.ui.preview.AlarmScreens
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
