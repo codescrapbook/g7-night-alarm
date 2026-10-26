@@ -147,20 +147,6 @@ jobs:
             adb shell svc power stayon true || true
             adb shell input keyevent 82 || true
             adb shell wm dismiss-keyguard || true
-            # Proactively launch the app activity so Espresso starts with a RESUMED activity
-            adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.ui.MainActivity || true
-            # Wait until our package is foreground before proceeding
-            PKG=com.g7nightalarm.app.debug
-            for i in $(seq 1 30); do
-              adb shell dumpsys activity activities 2>/dev/null | grep -q "topResumedActivity.*$PKG" && break
-              adb shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG" && break
-              sleep 0.5
-            done
-            # Print state if still not foreground (test code will assert foreground when capturing its own screenshots)
-            adb shell dumpsys activity activities 2>/dev/null | grep -q "topResumedActivity.*$PKG" || {
-              echo "Warning: app not confirmed foreground; continuing. topResumedActivity follows:"
-              adb shell dumpsys activity activities | sed -n '/Running activities/,$p' | head -n 200 || true
-            }
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
@@ -175,6 +161,7 @@ jobs:
             # Public Pictures fallback (written by tests when screencap is used)
             adb pull /sdcard/Pictures/g7-night-alarm artifacts/screenshots/api${{ matrix.api-level }} || true
             # Curated screenshots via debug ScreenshotActivity
+            PKG=com.g7nightalarm.app.debug
             adb shell am start -n com.g7nightalarm.app.debug/com.g7nightalarm.app.debug.ScreenshotActivity --es screen home_awake_mgdl || true
             for i in $(seq 1 30); do
               adb shell dumpsys activity activities 2>/dev/null | grep -q "topResumedActivity.*$PKG" && break
