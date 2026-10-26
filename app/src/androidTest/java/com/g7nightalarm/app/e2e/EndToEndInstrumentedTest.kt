@@ -437,8 +437,8 @@ class EndToEndInstrumentedTest {
         // Reset clock and inject a fresh BG_ESTIMATE to establish lastReadingAt on the monotonic clock
         clockReset()
         sendBgEstimate(120.0, ts = nextReadingTs())
-        // Give service a moment to persist lastReadingAt
-        Thread.sleep(300)
+        // Give service a solid moment to persist lastReadingAt (async IO in receiver)
+        Thread.sleep(1000)
         // Advance fake clock by 31 minutes to trip signal-lost (>=30)
         clockAdvance(31L * 60L * 1000L)
         // Nudge evaluation: insert a no-op reading row (does not update lastReadingAt) to tick latestFlow,
