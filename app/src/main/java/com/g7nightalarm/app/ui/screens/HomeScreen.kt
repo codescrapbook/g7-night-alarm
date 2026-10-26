@@ -62,13 +62,37 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF101010))
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Subtle stitched border decoration (does not affect layout or readability)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val stitchColor = Color(0xFFC62828)
+            val stitchLen = 12f
+            val gap = 8f
+            var x = 0f
+            while (x < w) {
+                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(x, 0f), size = androidx.compose.ui.geometry.Size(stitchLen, 2f))
+                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(x, h - 2f), size = androidx.compose.ui.geometry.Size(stitchLen, 2f))
+                x += stitchLen + gap
+            }
+            var y = 0f
+            while (y < h) {
+                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(0f, y), size = androidx.compose.ui.geometry.Size(2f, stitchLen))
+                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(w - 2f, y), size = androidx.compose.ui.geometry.Size(2f, stitchLen))
+                y += stitchLen + gap
+            }
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
                 // High-contrast, large digits readable at distance
@@ -112,6 +136,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
             }
         }
         Spacer(Modifier.weight(1f))
+        }
     }
 }
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -105,6 +106,27 @@ fun SettingsScreen(onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge)
+        // Subtle purple stitch under the header for theme continuity
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+                .height(4.dp)
+        ) {
+            val w = size.width
+            val stitchColor = androidx.compose.ui.graphics.Color(0xFF8E44AD)
+            val stitchLen = 16f
+            val gap = 10f
+            var x = 0f
+            while (x < w) {
+                drawRect(
+                    color = stitchColor,
+                    topLeft = androidx.compose.ui.geometry.Offset(x, 0f),
+                    size = androidx.compose.ui.geometry.Size(stitchLen, size.height)
+                )
+                x += stitchLen + gap
+            }
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(urgentLow, onValueChange = { urgentLow = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Urgent low (mg/dL)") }, modifier = Modifier.weight(1f))
             OutlinedTextField(low, onValueChange = { low = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Low (mg/dL)") }, modifier = Modifier.weight(1f))
