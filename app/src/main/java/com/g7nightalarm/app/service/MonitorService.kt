@@ -212,6 +212,7 @@ class MonitorService : Service() {
                     try { android.util.Log.d("MonitorService", "URGENT_LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
+                        try { android.util.Log.d("MonitorService", "START LOW RAMP urgent=true typeWas=$awakeAlarmType vol=$awakeVol") } catch (_: Throwable) {}
                         startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low (urgent)", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
                         if (musicEnabled) {
                             alarmController.startAwakeMusicRampLow(awakeVol, urgent = true, contentUri = lowUri)
@@ -226,6 +227,7 @@ class MonitorService : Service() {
                     try { android.util.Log.d("MonitorService", "LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt}") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
+                        try { android.util.Log.d("MonitorService", "START LOW RAMP urgent=false typeWas=$awakeAlarmType vol=$awakeVol") } catch (_: Throwable) {}
                         startAwakeNotification(AlarmActionReceiver.TYPE_LOW, "Low", "Glucose ${event.valueMgdl.toInt()} mg/dL — escalating")
                         if (musicEnabled) {
                             alarmController.startAwakeMusicRampLow(awakeVol, urgent = false, contentUri = lowUri)
