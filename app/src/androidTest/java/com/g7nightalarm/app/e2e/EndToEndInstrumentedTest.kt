@@ -152,6 +152,21 @@ class EndToEndInstrumentedTest {
         try {
             device.wakeUp()
         } catch (_: Throwable) {}
+        // Production CLEAR for all alarm types to ensure clean state between tests
+        listOf(
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN,
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW,
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+            com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL
+        ).forEach { t ->
+            context.sendBroadcast(
+                Intent(com.g7nightalarm.app.receiver.AlarmActionReceiver.ACTION_CLEAR).apply {
+                    component = ComponentName(context, com.g7nightalarm.app.receiver.AlarmActionReceiver::class.java)
+                    putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, t)
+                }
+            )
+        }
+        Thread.sleep(150)
         // Reset fake clock offset
         clockReset()
     }
