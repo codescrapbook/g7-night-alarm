@@ -25,6 +25,7 @@ import androidx.compose.ui.test.captureToImage
 import android.graphics.Bitmap
 import java.io.FileOutputStream
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import org.junit.Test
 import java.io.File
 import kotlin.math.sin
@@ -50,12 +51,12 @@ class RoborazziScreenshotsTest {
     // Note: tests run with working directory at the app module; write under module build/
     private val outDir = File("build/outputs/roborazzi/screens")
 
-    private fun waitForLatestNotNull(timeoutMs: Long = 2000L) {
+    private suspend fun waitForLatestNotNull(timeoutMs: Long = 2000L) {
         val dao = AppDatabase.get(context).glucoseDao()
         val start = System.currentTimeMillis()
         while (System.currentTimeMillis() - start < timeoutMs) {
             if (dao.latest() != null) return
-            try { Thread.sleep(50) } catch (_: Throwable) {}
+            try { delay(50) } catch (_: Throwable) {}
         }
     }
 
