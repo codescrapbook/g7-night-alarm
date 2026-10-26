@@ -45,7 +45,7 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
         )
         CoroutineScope(Dispatchers.IO).launch {
             val dao = AppDatabase.get(context).glucoseDao()
-            dao.insert(reading)
+            val rowId = dao.insert(reading)
             dao.prune(System.currentTimeMillis() - HISTORY_PRUNE_MS)
             // Record last reading arrival using the monotonic debug-aware clock
             val repo = SettingsRepository(context)
@@ -53,7 +53,7 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
             try {
                 android.util.Log.i(
                     TAG,
-                    "BG_ESTIMATE received mgdl=$mgdl ts=$ts slopePerMin=$slopePerMin updatedLastAt=${ClockHolder.nowMs()}"
+                    "BG_ESTIMATE received mgdl=$mgdl ts=$ts slopePerMin=$slopePerMin updatedLastAt=${ClockHolder.nowMs()} insertRowId=$rowId"
                 )
             } catch (_: Throwable) {}
         }
