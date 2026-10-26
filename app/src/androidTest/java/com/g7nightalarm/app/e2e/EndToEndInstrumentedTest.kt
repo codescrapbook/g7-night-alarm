@@ -361,7 +361,7 @@ class EndToEndInstrumentedTest {
         clockAdvance((2 * 60 + 30) * 1000L)
         var midGtStart = false
         var midVal = -1
-        repeat(20) { // wait up to ~5s for ramp thread to apply
+        repeat(40) { // wait up to ~10s for ramp thread to apply on slower emulators
             midVal = am.getStreamVolume(AudioManager.STREAM_ALARM)
             if (midVal > startVol && midVal < max) { midGtStart = true; return@repeat }
             Thread.sleep(250)
