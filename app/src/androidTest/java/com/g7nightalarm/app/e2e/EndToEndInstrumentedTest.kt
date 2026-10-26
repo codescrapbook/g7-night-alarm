@@ -424,20 +424,22 @@ class EndToEndInstrumentedTest {
                 // Clear any prior snooze timestamps that could suppress signal lost
                 p[SettingsKeys.lastSignalClearAt] = 0L
                 p[SettingsKeys.lastHighClearAt] = 0L
-                // Backdate last reading arrival so the monotonic staleness path trips >=30 minutes
-                p[SettingsKeys.lastReadingAt] = com.g7nightalarm.app.time.ClockHolder.nowMs() - (31L * 60L * 1000L)
+                // Ensure lastReadingAt will be set via xDrip path, not via direct DataStore write
+                p[SettingsKeys.lastReadingAt] = 0L
             }
         }
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (50 / 100.0)).toInt().coerceIn(1, max)
         val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
-        // Ensure there is a latest reading row (value doesn't matter) so evaluator runs NoData(minutes from lastReadingAt)
-        runBlocking {
-            val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
-            dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = System.currentTimeMillis(), mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
-        }
-        // Poke service to evaluate immediately
+        // Reset clock and inject a fresh BG_ESTIMATE to establish lastReadingAt on the monotonic clock
+        clockReset()
+        sendBgEstimate(120.0, ts = nextReadingTs())
+        // Give service a moment to persist lastReadingAt
+        Thread.sleep(300)
+        // Advance fake clock by 31 minutes to trip signal-lost (>=30)
+        clockAdvance(31L * 60L * 1000L)
+        // Poke service to evaluate immediately using the updated monotonic now
         context.sendBroadcast(Intent(MonitorService.ACTION_BG_UPDATED))
         var ok = false
         repeat(120) {
