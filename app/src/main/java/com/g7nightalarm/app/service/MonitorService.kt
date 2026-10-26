@@ -183,6 +183,7 @@ class MonitorService : Service() {
         val settingsFlow = settings.flow
         scope.launch {
             combine(latestFlow, prevFlow, settingsFlow) { latest, prev, s -> Triple(latest, prev, s) }
+                .distinctUntilChanged()
                 .collect { (latest, prev, s) ->
                     val evalNow = if (s.lastReadingAtMs > 0L) ClockHolder.nowMs() else System.currentTimeMillis()
                     val event = evaluator.evaluate(latest, prev, evalNow, s)
