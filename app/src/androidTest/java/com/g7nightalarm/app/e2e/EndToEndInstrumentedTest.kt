@@ -48,6 +48,12 @@ class EndToEndInstrumentedTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    // Ensure unique xDrip timestamps to avoid DB unique index dedupe
+    private var uniqueReadingTs: Long = System.currentTimeMillis()
+    private fun nextReadingTs(): Long {
+        uniqueReadingTs += 1_000L
+        return uniqueReadingTs
+    }
 
     private fun clockReset() {
         context.sendBroadcast(
@@ -522,13 +528,13 @@ class EndToEndInstrumentedTest {
         clockAdvance(20L * 60L * 1000L)
         Thread.sleep(300)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
-        sendBgEstimate(75.0)
+        sendBgEstimate(75.0, ts = nextReadingTs())
         Thread.sleep(1500)
         Assert.assertEquals("Expected low-band alarm suppressed within 30 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
         // After total 31 minutes it should re-alarm (advance additional 11 minutes)
         clockAdvance(11L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
-        sendBgEstimate(75.0)
+        sendBgEstimate(75.0, ts = nextReadingTs())
         var relaunch = false
         repeat(80) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { relaunch = true; return@repeat }
@@ -587,13 +593,13 @@ class EndToEndInstrumentedTest {
         clockAdvance(10L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         // Re-trigger sub-70 low
-        sendBgEstimate(65.0)
+        sendBgEstimate(65.0, ts = nextReadingTs())
         Thread.sleep(1500)
         Assert.assertEquals("Expected low <70 suppressed within 15 minutes.", baseline, am.getStreamVolume(AudioManager.STREAM_ALARM))
         // After total 16 minutes it should re-alarm (advance additional 6 minutes)
         clockAdvance(6L * 60L * 1000L)
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
-        sendBgEstimate(65.0)
+        sendBgEstimate(65.0, ts = nextReadingTs())
         var relaunched = false
         repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) >= awakeVol) { relaunched = true; return@repeat }
