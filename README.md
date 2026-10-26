@@ -105,7 +105,7 @@ Sideloading on your Android tablet
 ----------------------------------
 1. Enable “Install unknown apps” for your file browser or USB installer app.
 2. Transfer `app/build/outputs/apk/debug/app-debug.apk` to the tablet (USB, ADB, or cloud).
-3. Install the APK. Launch “G7 Night Alarm”.
+3. Install the APK. Launch “Undead In Bed”.
 4. In Settings:
    - Grant Notifications
    - Grant Battery optimization exemption
