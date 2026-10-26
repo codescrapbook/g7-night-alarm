@@ -23,13 +23,11 @@ class AlarmEvaluator {
     ): AlarmEvent {
         if (latest == null) return AlarmEvent.NoData(settings.thresholds.noDataMinutes)
 
-        val computedNow = ClockHolder.nowMs()
         val lastAt = settings.lastReadingAtMs
         val ageMin = if (lastAt > 0L) {
-            ((computedNow - lastAt) / 60000.0).toInt()
+            ((nowMs - lastAt) / 60000.0).toInt()
         } else {
-            // Fallback to wall-clock comparison if debug clock not set
-            ((System.currentTimeMillis() - latest.timestamp) / 60000.0).toInt()
+            ((nowMs - latest.timestamp) / 60000.0).toInt()
         }
         if (ageMin >= settings.thresholds.noDataMinutes) {
             return AlarmEvent.NoData(ageMin)
