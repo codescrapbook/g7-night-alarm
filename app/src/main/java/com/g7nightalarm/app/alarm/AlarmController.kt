@@ -155,7 +155,24 @@ class AlarmController(private val context: Context) {
     private fun restoreAlarmVolume() {
         // Only the current owner may restore; stale owners must not clobber a newer session.
         val tok = myVolumeOwnerToken
-        if (tok == 0L) return
+        // Allow a cross-instance restore when caller has no token but there is an active owner:
+        // this covers receivers that construct a new AlarmController solely to perform a stop/restore
+        if (tok == 0L) {
+            if (currentVolumeOwnerToken != 0L) {
+                val target = globalRestoreTargetVolume
+                if (target != null) {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    try {
+                        am.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
+                        android.util.Log.i("AlarmController", "Restored STREAM_ALARM to $target by cross-instance request")
+                    } catch (_: Throwable) {}
+                }
+                // Clear ownership after cross-instance restore.
+                globalRestoreTargetVolume = null
+                currentVolumeOwnerToken = 0L
+            }
+            return
+        }
         if (tok != currentVolumeOwnerToken) {
             try {
                 android.util.Log.i("AlarmController", "Skipping volume restore: stale owner token=$tok current=$currentVolumeOwnerToken")
