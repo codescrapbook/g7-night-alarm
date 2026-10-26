@@ -34,9 +34,14 @@ import org.robolectric.annotation.Config
 import org.robolectric.Robolectric
 import org.robolectric.shadows.ShadowLooper
 import androidx.core.view.drawToBitmap
+import org.robolectric.annotation.GraphicsMode
+import org.robolectric.annotation.GraphicsMode.Mode.NATIVE
+import com.g7nightalarm.app.ui.alarm.AlarmActivity
+import com.g7nightalarm.app.ui.preview.AlarmScreens
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
+@GraphicsMode(NATIVE)
 class RoborazziScreenshotsTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
@@ -89,11 +94,11 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun home_awake_mgdl_24h_land() = runBlocking {
+    fun home_awake_mgdl() = runBlocking {
         seedReadings(24)
         setUnits(Units.MG_DL)
         setMode(false)
-        renderAndSavePng("home_awake_mgdl_24h_land.png") {
+        renderAndSavePng("home_awake_mgdl.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
@@ -103,11 +108,11 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun home_sleep_mgdl_24h_land() = runBlocking {
+    fun home_sleep_mgdl() = runBlocking {
         seedReadings(24)
         setUnits(Units.MG_DL)
         setMode(true)
-        renderAndSavePng("home_sleep_mgdl_24h_land.png") {
+        renderAndSavePng("home_sleep_mgdl.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     HomeScreen(onOpenSettings = {})
@@ -117,11 +122,11 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun home_awake_mmol_3h_port() = runBlocking {
+    fun home_awake_mmol_port() = runBlocking {
         seedReadings(3)
         setUnits(Units.MMOL_L)
         setMode(false)
-        renderAndSavePng("home_awake_mmol_3h_port.png") {
+        renderAndSavePng("home_awake_mmol_port.png") {
             G7Theme {
                 Box(Modifier.size(800.dp, 1280.dp)) {
                     HomeScreen(onOpenSettings = {})
@@ -131,8 +136,8 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun settings_land() {
-        renderAndSavePng("settings_land.png") {
+    fun settings() {
+        renderAndSavePng("settings.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     SettingsScreen(onBack = {})
@@ -142,9 +147,9 @@ class RoborazziScreenshotsTest {
     }
 
     @Test
-    fun settings_music_land() {
+    fun settings_music() {
         setMusicMode(true)
-        renderAndSavePng("settings_music_land.png") {
+        renderAndSavePng("settings_music.png") {
             G7Theme {
                 Box(Modifier.size(1280.dp, 800.dp)) {
                     SettingsScreen(onBack = {})
@@ -153,5 +158,49 @@ class RoborazziScreenshotsTest {
         }
     }
 
+    @Test
+    fun alarm_urgent_activity() {
+        val activity = Robolectric.buildActivity(AlarmActivity::class.java).setup().get()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        outDir.mkdirs()
+        val file = File(outDir, "alarm_urgent.png")
+        val bitmap = activity.window.decorView.drawToBitmap()
+        FileOutputStream(file).use { fos ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        }
+    }
+
+    @Test
+    fun alarm_low_warn_screen() {
+        renderAndSavePng("alarm_low_warn.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    AlarmScreens.LowWarn()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun alarm_high_screen() {
+        renderAndSavePng("alarm_high.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    AlarmScreens.High()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun alarm_signal_lost_screen() {
+        renderAndSavePng("alarm_signal_lost.png") {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    AlarmScreens.SignalLost()
+                }
+            }
+        }
+    }
 }
 
