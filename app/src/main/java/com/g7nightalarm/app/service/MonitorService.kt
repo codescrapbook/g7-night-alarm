@@ -291,6 +291,12 @@ class MonitorService : Service() {
                 }
                 is AlarmEvent.NoData -> {
                     if (event.minutes >= 30) {
+                        try {
+                            android.util.Log.i(
+                                "MonitorService",
+                                "NO_DATA minutes=${event.minutes} now=$now lastSignalClearAt=${s.lastSignalClearAt} music=$musicEnabled awakeVol=$awakeVol"
+                            )
+                        } catch (_: Throwable) {}
                         if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastSignalClearAt, s.awakeSignalLostRearmMin)) return@launch
                         startAwakeNotification(AlarmActionReceiver.TYPE_SIGNAL, "Signal lost", "No data for ${event.minutes} minutes")
                         if (musicEnabled) {

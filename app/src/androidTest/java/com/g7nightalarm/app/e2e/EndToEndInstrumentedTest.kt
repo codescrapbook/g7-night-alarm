@@ -432,6 +432,13 @@ class EndToEndInstrumentedTest {
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
         val awakeVol = (max * (50 / 100.0)).toInt().coerceIn(1, max)
         val before = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        // Ensure there is a latest reading row (value doesn't matter) so evaluator runs NoData(minutes from lastReadingAt)
+        runBlocking {
+            val dao = com.g7nightalarm.app.data.AppDatabase.get(context).glucoseDao()
+            dao.insert(com.g7nightalarm.app.data.GlucoseReading(timestamp = System.currentTimeMillis(), mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
+        }
+        // Poke service to evaluate immediately
+        context.sendBroadcast(Intent(MonitorService.ACTION_BG_UPDATED))
         var ok = false
         repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { ok = true; return@repeat }
