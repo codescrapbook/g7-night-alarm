@@ -21,7 +21,18 @@ class AlarmEvaluator {
         nowMs: Long,
         settings: SettingsState
     ): AlarmEvent {
-        if (latest == null) return AlarmEvent.NoData(settings.thresholds.noDataMinutes)
+        // If we have no latest reading, still compute staleness minutes from the monotonic clock when available,
+        // so callers see the real elapsed time rather than the threshold value.
+        if (latest == null) {
+            val lastAt = settings.lastReadingAtMs
+            val ageMin = if (lastAt > 0L) {
+                ((nowMs - lastAt) / 60000.0).toInt()
+            } else {
+                // No basis: fall back to threshold minutes to preserve prior behavior
+                settings.thresholds.noDataMinutes
+            }
+            return AlarmEvent.NoData(ageMin)
+        }
 
         val lastAt = settings.lastReadingAtMs
         val ageMin = if (lastAt > 0L) {
