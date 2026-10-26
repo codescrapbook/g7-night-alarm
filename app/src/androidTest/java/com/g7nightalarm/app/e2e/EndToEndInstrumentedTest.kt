@@ -104,11 +104,13 @@ class EndToEndInstrumentedTest {
         // Proactively wake and unlock, and ensure our app is foregrounded
         try { device.wakeUp() } catch (_: Throwable) {}
         try { device.executeShellCommand("wm dismiss-keyguard") } catch (_: Throwable) {}
-        if (device.currentPackageName != context.packageName) {
-            try {
-                context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                device.wait(Until.hasObject(By.pkg(context.packageName)), 5_000)
-            } catch (_: Throwable) { }
+        // Strongly bring our activity to foreground (shell start waits for launch)
+        repeat(2) {
+            try { device.executeShellCommand("am start -W -n ${context.packageName}/com.g7nightalarm.app.ui.MainActivity") } catch (_: Throwable) {}
+            try { context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) {}
+            device.wait(Until.hasObject(By.pkg(context.packageName)), 5_000)
+            if (device.currentPackageName == context.packageName) return@repeat
+            try { Thread.sleep(300) } catch (_: Throwable) {}
         }
         device.waitForIdle()
         // Verify the app is foreground; if not, fail the test to prevent false screenshots
