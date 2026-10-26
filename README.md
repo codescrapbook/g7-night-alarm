@@ -3,6 +3,10 @@ G7 Night Alarm (Android, Kotlin/Compose)
 
 Purpose: A backup, tablet‑friendly glucose alarm for Dexcom G7 users whose official alarms may be too quiet or unreliable overnight. This app listens to xDrip+ broadcasts (not the Dexcom sensor directly), stores and charts glucose, and, on alarm, can play a piercing full‑volume alarm that continues until deliberately dismissed.
 
+Disclaimer
+----------
+This is a free, open‑source personal hobby project provided “AS IS” without warranty of any kind. It is NOT a medical device, is not FDA‑cleared or approved, and is not affiliated with or endorsed by Dexcom or xDrip+. It must not replace a prescribed CGM, its alarms, or medical advice. It may fail to alert. Anyone who uses, builds, or modifies it does so entirely at their own risk, and the author(s) assume no liability or responsibility for any harm, injury, or damages arising from its use.
+
 Safety note
 -----------
 - This app is NOT a medical device. It is intended only as a backup/secondary alarm. It does not replace your prescribed devices or medical advice.
@@ -77,7 +81,21 @@ Artifacts:
 CI
 --
 This repo includes a GitHub Actions workflow to build on CI:
-- Runs `./gradlew assembleDebug test` and uploads `app-debug.apk` as an artifact.
+- Unit job runs `./gradlew test jacocoTestReport` and uploads JUnit + JaCoCo reports. It also builds and uploads the debug APK and JVM screenshots.
+- Instrumented job runs connected tests on an emulator (API 30 and 34, tablet profile, landscape) and uploads JUnit reports, logcat, and emulator screenshots.
+- Optional Firebase Test Lab job (manual dispatch or push to `main`) runs the instrumented suite on one physical and one virtual device if secrets are configured.
+
+Firebase Test Lab setup (free Spark plan)
+-----------------------------------------
+To enable the optional Test Lab job:
+1. Create a free Firebase project (Spark plan).
+2. In Google Cloud Console for that project, create a service account:
+   - Roles: `Firebase Test Lab Admin`, `Storage Object Admin`, and `Viewer` (minimum for runs and result access).
+   - Create a JSON key for the service account and save it locally.
+3. In GitHub, go to Settings → Secrets and variables → Actions:
+   - Add secret `FIREBASE_PROJECT_ID` with your Firebase/GCP Project ID (e.g., `my-firebase-project`).
+   - Add secret `GCP_SA_KEY` with the contents of the service account JSON key.
+4. Trigger the workflow manually (Actions → Android CI → Run workflow) or push to `main`. If secrets are missing, the job prints a notice and skips without failing.
 
 Sideloading on your Android tablet
 ----------------------------------
@@ -102,8 +120,9 @@ Known limitations and notes
 
 License
 -------
-Apache 2.0 for this app code. Vosk model licenses are separate; follow the model author’s license terms.
+MIT License — see the `LICENSE` file at the repo root. Any third‑party models or libraries (e.g., Vosk) carry their own licenses; follow their license terms.
 
 # New repo
 
 This repo was created by a Cursor cloud agent.
+\nCI: retrigger to shake flaky API 34 noData test (#40301012677)

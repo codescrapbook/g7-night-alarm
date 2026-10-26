@@ -20,6 +20,9 @@ interface GlucoseDao {
     @Query("SELECT * FROM glucose_readings ORDER BY timestamp DESC LIMIT 1")
     suspend fun latest(): GlucoseReading?
 
+    @Query("SELECT * FROM glucose_readings ORDER BY timestamp DESC LIMIT 2")
+    suspend fun latest2(): List<GlucoseReading>
+
     @Query("DELETE FROM glucose_readings WHERE timestamp < :before")
     suspend fun prune(before: Long): Int
 }

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- Override service types for debug/instrumented tests to avoid microphone FGS restrictions on API 34+ -->
+        <service
+            android:name=".service.MonitorService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            tools:replace="android:foregroundServiceType" />
+        <!-- Debug-only receiver to stop full alarm in tests -->
+        <receiver
+            android:name=".receiver.TestStopAlarmReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.STOP_FULL_ALARM" />
+            </intent-filter>
+        </receiver>
+        <!-- Debug-only receivers for tests -->
+        <receiver
+            android:name=".receiver.TestTimeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.TEST_SET_NOW" />
+                <action android:name="com.g7nightalarm.TEST_CLEAR_NOW" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.TestAlarmStartReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.TEST_START_AWAKE_LOW_WARN" />
+                <action android:name="com.g7nightalarm.TEST_START_AWAKE_RAMP_LOW" />
+                <action android:name="com.g7nightalarm.TEST_START_AWAKE_HIGH" />
+                <action android:name="com.g7nightalarm.TEST_START_SIGNAL_LOST" />
+            </intent-filter>
+        </receiver>
+        <!-- Debug-only clock control -->
+        <receiver
+            android:name=".receiver.FakeClockReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.DEBUG_SET_CLOCK" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.TestVoiceInjectReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.TEST_VOICE" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name="com.g7nightalarm.app.debug.ScreenshotActivity"
+            android:exported="true"
+            android:label="ScreenshotActivity" />
+    </application>
+</manifest>
+

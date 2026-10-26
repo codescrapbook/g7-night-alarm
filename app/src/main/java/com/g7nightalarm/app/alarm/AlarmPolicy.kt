@@ -10,7 +10,15 @@ object AlarmPolicy {
     fun shouldSuppressBySnooze(nowMs: Long, lastClearMs: Long, windowMinutes: Int): Boolean {
         if (lastClearMs <= 0L) return false
         val nextAllowed = lastClearMs + windowMinutes * 60_000L
-        return nowMs < nextAllowed
+        val suppressed = nowMs < nextAllowed
+        // Emit at INFO to surface in CI logcats
+        try {
+            android.util.Log.i(
+                "AlarmPolicy",
+                "snoozeCheck suppressed=$suppressed now=$nowMs lastClear=$lastClearMs windowMin=$windowMinutes nextAllowed=$nextAllowed"
+            )
+        } catch (_: Throwable) {}
+        return suppressed
     }
 
     fun shouldUseFullAlarm(
