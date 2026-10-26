@@ -791,6 +791,22 @@ class AlarmController(private val context: Context) {
             val finalVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
             android.util.Log.i("AlarmController", "STREAM_ALARM set to $finalVol (target=$set) after $attempts attempt(s)")
         } catch (_: Throwable) {}
+        // Detect late clobber (e.g., a stale restore racing shortly after we set) and reapply once.
+        thread(start = true, isDaemon = true, name = "AlarmVolumeVerifyOnce") {
+            try {
+                Thread.sleep(400)
+                val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (v != set) {
+                    try {
+                        android.util.Log.w(
+                            "AlarmController",
+                            "STREAM_ALARM post-set verification saw $v (target=$set). Likely clobbered by a delayed restore or policy. Reapplying once."
+                        )
+                    } catch (_: Throwable) {}
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {
