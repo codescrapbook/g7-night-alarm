@@ -66,9 +66,9 @@ class RoborazziScreenshotsTest {
             content()
         }
         // Give Room flows and Compose time to emit and recompose before capture
-        repeat(8) {
+        repeat(20) {
             ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-            try { Thread.sleep(50) } catch (_: Throwable) {}
+            try { Thread.sleep(75) } catch (_: Throwable) {}
         }
         outDir.mkdirs()
         val file = File(outDir, name)
