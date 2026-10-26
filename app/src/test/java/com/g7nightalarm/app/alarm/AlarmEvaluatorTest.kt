@@ -20,7 +20,7 @@ class AlarmEvaluatorTest {
     @Test
     fun noDataTriggers() {
         val now = 1_000_000L
-        val r = GlucoseReading(timestamp = now - 21 * 60_000L, mgdl = 100.0, slopeMgdlPerMin = null, slopeName = null, source = "t")
+        val r = GlucoseReading(timestamp = now - 31 * 60_000L, mgdl = 100.0, slopeMgdlPerMin = null, slopeName = null, source = "t")
         val ev = evaluator.evaluate(r, null, now, settings)
         assertTrue(ev is AlarmEvent.NoData)
     }

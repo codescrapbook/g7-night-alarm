@@ -19,21 +19,19 @@ val Context.dataStore by preferencesDataStore(SETTINGS_NAME)
 enum class Units { MG_DL, MMOL_L }
 
 data class Thresholds(
-    // Spec: urgent below 70, low band alert at <=80
+    // Spec defaults: urgent below 70, low band alert at <=80
     val urgentLow: Double = 70.0,
     val low: Double = 80.0,
     val high: Double = 250.0,
-    val rapidFallRateMgdlPerMin: Double = 3.0, // mg/dL per 5 min ~ 0.6/min, this is per min
-    val noDataMinutes: Int = 20
+    val rapidFallRateMgdlPerMin: Double = 3.0,
+    val noDataMinutes: Int = 30
 )
 
 data class SettingsState(
     val thresholds: Thresholds = Thresholds(),
     val units: Units = Units.MG_DL,
-    val allowAlarmSnooze: Boolean = true,
-    val snoozeMinutes: Int = 10,
     val sleepMode: Boolean = false,
-    val voiceEnabled: Boolean = false,
+    val voiceEnabled: Boolean = true,
     val safetyNetAlwaysFull: Boolean = true,
     val autoSleepHour: Int = 23,
     val autoSleepMinute: Int = 0,
@@ -64,8 +62,6 @@ object SettingsKeys {
     val rapidFall = doublePreferencesKey("rapid_fall")
     val noDataMin = intPreferencesKey("no_data_min")
     val units = stringPreferencesKey("units")
-    val allowSnooze = booleanPreferencesKey("allow_snooze")
-    val snoozeMin = intPreferencesKey("snooze_min")
     val sleepMode = booleanPreferencesKey("sleep_mode")
     val voiceEnabled = booleanPreferencesKey("voice_enabled")
     val safetyNetAlwaysFull = booleanPreferencesKey("safety_net_full")
@@ -96,20 +92,18 @@ class SettingsRepository(private val context: Context) {
     val flow: Flow<SettingsState> = context.dataStore.data.map { prefs ->
         SettingsState(
             thresholds = Thresholds(
-                urgentLow = prefs[SettingsKeys.urgentLow] ?: 55.0,
-                low = prefs[SettingsKeys.low] ?: 70.0,
+                urgentLow = prefs[SettingsKeys.urgentLow] ?: 70.0,
+                low = prefs[SettingsKeys.low] ?: 80.0,
                 high = prefs[SettingsKeys.high] ?: 250.0,
-                rapidFallRateMgdlPerMin = prefs[SettingsKeys.rapidFall] ?: 2.0,
-                noDataMinutes = prefs[SettingsKeys.noDataMin] ?: 20
+                rapidFallRateMgdlPerMin = prefs[SettingsKeys.rapidFall] ?: 3.0,
+                noDataMinutes = prefs[SettingsKeys.noDataMin] ?: 30
             ),
             units = when (prefs[SettingsKeys.units] ?: Units.MG_DL.name) {
                 Units.MMOL_L.name -> Units.MMOL_L
                 else -> Units.MG_DL
             },
-            allowAlarmSnooze = prefs[SettingsKeys.allowSnooze] ?: true,
-            snoozeMinutes = prefs[SettingsKeys.snoozeMin] ?: 10,
             sleepMode = prefs[SettingsKeys.sleepMode] ?: false,
-            voiceEnabled = prefs[SettingsKeys.voiceEnabled] ?: false,
+            voiceEnabled = prefs[SettingsKeys.voiceEnabled] ?: true,
             safetyNetAlwaysFull = prefs[SettingsKeys.safetyNetAlwaysFull] ?: true,
             autoSleepHour = prefs[SettingsKeys.autoSleepHour] ?: 23,
             autoSleepMinute = prefs[SettingsKeys.autoSleepMinute] ?: 0,

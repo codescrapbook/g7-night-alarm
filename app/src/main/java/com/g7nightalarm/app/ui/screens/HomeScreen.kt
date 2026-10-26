@@ -144,9 +144,12 @@ private fun GlucoseChart(
             val times = history.map { it.timestamp }
             val minT = times.min()
             val maxT = times.max()
+            val spanT = (maxT - minT).coerceAtLeast(1L)
             val path = Path()
-            history.sortedBy { it.timestamp }.forEachIndexed { idx, r ->
-                val x = ((r.timestamp - minT).toFloat() / (maxT - minT).toFloat()).coerceIn(0f, 1f) * w
+            // Deduplicate consecutive identical timestamps to avoid zigzags at the right edge
+            val deduped = history.sortedBy { it.timestamp }.distinctBy { it.timestamp }
+            deduped.forEachIndexed { idx, r ->
+                val x = ((r.timestamp - minT).toFloat() / spanT.toFloat()).coerceIn(0f, 1f) * w
                 val y = yFor(if (units == Units.MG_DL) r.mgdl else r.mgdl / 18.0)
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
