@@ -151,7 +151,9 @@ class RoborazziScreenshotsTest {
         val latest120 = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
         setUnits(Units.MG_DL)
         // Home and Settings
-        renderAndSavePngActivityFontScale("fs2_home_awake_mgdl.png", 2f) { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}) } }
+        val histAwake = buildHistory(3, now, 142.0, "↗")
+        val latest142 = GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test")
+        renderAndSavePngActivityFontScale("fs2_home_awake_mgdl.png", 2f) { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest142, previewHistory = histAwake) } }
         renderAndSavePngActivityFontScale("fs2_settings.png", 2f) { Box(Modifier.size(1280.dp, 800.dp)) { SettingsScreen(onBack = {}) } }
         // Alarms
         renderAndSavePngActivityFontScale("fs2_alarm_urgent.png", 2f) {
@@ -221,7 +223,9 @@ class RoborazziScreenshotsTest {
         val latest260 = GlucoseReading(timestamp = now - 60_000L, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test")
         val latest120 = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
         setUnits(Units.MG_DL)
-        renderAndSavePngActivityFontScale("fs2_phone_home_sleep_mgdl.png", 2f) { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewIsSleep = true) } }
+        val histPhone = buildHistory(3, now, 120.0, "Flat")
+        val latest120now = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
+        renderAndSavePngActivityFontScale("fs2_phone_home_sleep_mgdl.png", 2f) { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest120now, previewHistory = histPhone, previewIsSleep = true) } }
         renderAndSavePngActivityFontScale("fs2_phone_settings.png", 2f) { Box(Modifier.size(411.dp, 891.dp)) { SettingsScreen(onBack = {}) } }
         renderAndSavePngActivityFontScale("fs2_phone_alarm_urgent.png", 2f) {
             Box(Modifier.size(411.dp, 891.dp)) {

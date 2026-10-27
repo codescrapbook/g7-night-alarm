@@ -156,6 +156,8 @@ fun HomeScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.ExtraBold,
+                        // Functional reading value should use system font, not decorative
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                         modifier = Modifier.semantics {
                             contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
                                 when (trendArrowFor(latest)) {
@@ -192,6 +194,7 @@ fun HomeScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.ExtraBold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                         modifier = Modifier.semantics {
                             contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
                                 when (trendArrowFor(latest)) {

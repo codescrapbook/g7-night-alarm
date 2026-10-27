@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -237,7 +239,8 @@ fun AlarmContent(
         val instructionStyle = MaterialTheme.typography.headlineMedium.copy(
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = subtitleColor
+            color = subtitleColor,
+            fontFamily = FontFamily.Default
         )
         Text(
             text = when (dismissLabel) {
@@ -254,9 +257,10 @@ fun AlarmContent(
         Box(
             modifier = Modifier
                 .padding(top = 48.dp)
-                .clip(CircleShape)
+                .sizeIn(minWidth = 260.dp, minHeight = 120.dp)
+                .clip(RoundedCornerShape(60.dp))
                 .background(Color(0xFFE5E5E5))
-                .padding(48.dp)
+                .padding(horizontal = 48.dp, vertical = 24.dp)
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onPress = {
@@ -275,7 +279,7 @@ fun AlarmContent(
         ) {
             Text(
                 dismissLabel,
-                style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 28.sp),
+                style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 32.sp),
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.Black
             )
