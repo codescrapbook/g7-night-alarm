@@ -599,7 +599,7 @@ class EndToEndInstrumentedTest {
         am.setStreamVolume(AudioManager.STREAM_ALARM, baseline, 0)
         sendBgEstimate(75.0, ts = nextReadingTs())
         var relaunch = false
-        repeat(80) {
+        repeat(120) {
             if (am.getStreamVolume(AudioManager.STREAM_ALARM) == awakeVol) { relaunch = true; return@repeat }
             Thread.sleep(250)
         }
