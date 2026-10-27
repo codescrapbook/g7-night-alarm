@@ -430,7 +430,7 @@ class RoborazziScreenshotsTest {
         composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
-        composeRule.onNodeWithText("min ago", substring = true).assertExists()
+        composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
         // Render via activity using previewLatest to ensure deterministic text
         renderAndSavePngActivity("alarm_urgent.png") {
@@ -464,7 +464,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
-        composeRule.onNodeWithText("min ago", substring = true).assertExists()
+        composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_low_warn.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -497,7 +497,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↗", substring = true).assertExists()
-        composeRule.onNodeWithText("min ago", substring = true).assertExists()
+        composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_high.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -528,7 +528,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("→", substring = true).assertExists()
-        composeRule.onNodeWithText("min ago", substring = true).assertExists()
+        composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_signal_lost.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -616,7 +616,7 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("URGENT ALARM").assertExists()
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("min ago", substring = true).assertExists()
+            composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_urgent.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -648,7 +648,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("min ago", substring = true).assertExists()
+            composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low_warn.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -680,7 +680,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("min ago", substring = true).assertExists()
+            composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -712,7 +712,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↗", substring = true).assertExists()
-            composeRule.onNodeWithText("min ago", substring = true).assertExists()
+            composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_high.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -743,7 +743,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("→", substring = true).assertExists()
-            composeRule.onNodeWithText("min ago", substring = true).assertExists()
+            composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_signal_lost.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(

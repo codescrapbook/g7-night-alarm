@@ -65,6 +65,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.g7nightalarm.app.ui.a11y.FontSizeSpKey
 import com.g7nightalarm.app.ui.a11y.fontSizeSp
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -114,7 +117,8 @@ fun AlarmContent(
     val s by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
     val latest = previewLatest ?: flowLatest
     val units = previewUnits ?: s.units
-    val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt().coerceAtLeast(0) } ?: 0
+    val ageMs = latest?.let { (System.currentTimeMillis() - it.timestamp).coerceAtLeast(0) } ?: 0L
+    val ageMin = (ageMs / 60000L).toInt()
     fun trendArrow(): String {
         val name = latest?.slopeName ?: ""
         if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
@@ -130,7 +134,16 @@ fun AlarmContent(
     } else {
         "${UnitsUtil.formatValue(latest!!.mgdl, units)} ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrow()}"
     }
-    val readingSubtitle = if (latest == null) "" else "Last reading ${ageMin} min ago"
+    val agePhrase: String = if (latest == null) "" else when {
+        ageMs < 60_000L -> "just now"
+        ageMin in 1..59 -> {
+            if (ageMin == 1) "1 min ago" else "$ageMin mins ago"
+        }
+        else -> {
+            val hrs = ageMin / 60
+            if (hrs == 1) "1 hr ago" else "$hrs hrs ago"
+        }
+    }
 
     val flashing = remember { Animatable(0f) }
     LaunchedEffect(animationsEnabled) {
@@ -220,18 +233,62 @@ fun AlarmContent(
                 maxLines = 1,
                 softWrap = false
             )
-            if (readingSubtitle.isNotBlank()) {
-                val ageStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontSize = 24.sp,
-                    color = subtitleColor
-                )
+            if (agePhrase.isNotBlank()) {
+                // Build an annotated single-line age string with bold number at least 40sp
+                val density = androidx.compose.ui.platform.LocalDensity.current
+                val fs = density.fontScale
+                // Ensure at least 40sp for number and 32sp for the suffix at display scale
+                val numberSp = 40.sp
+                val suffixSp = 32.sp
+                val annotated = androidx.compose.ui.text.buildAnnotatedString {
+                    // Extract number and suffix tokens
+                    when {
+                        ageMs < 60_000L -> {
+                            // "just now" — treat as suffix portion
+                            withStyle(androidx.compose.ui.text.SpanStyle(fontSize = suffixSp, fontWeight = FontWeight.SemiBold, color = subtitleColor)) {
+                                append("just now")
+                            }
+                        }
+                        ageMin in 1..59 -> {
+                            val num = ageMin.toString()
+                            val unit = if (ageMin == 1) " min ago" else " mins ago"
+                            withStyle(androidx.compose.ui.text.SpanStyle(fontSize = numberSp, fontWeight = FontWeight.Bold, color = subtitleColor)) {
+                                append(num)
+                            }
+                            withStyle(androidx.compose.ui.text.SpanStyle(fontSize = suffixSp, fontWeight = FontWeight.SemiBold, color = subtitleColor)) {
+                                append(unit)
+                            }
+                        }
+                        else -> {
+                            val hrs = (ageMin / 60).toString()
+                            val unit = if (ageMin / 60 == 1) " hr ago" else " hrs ago"
+                            withStyle(androidx.compose.ui.text.SpanStyle(fontSize = numberSp, fontWeight = FontWeight.Bold, color = subtitleColor)) {
+                                append(hrs)
+                            }
+                            withStyle(androidx.compose.ui.text.SpanStyle(fontSize = suffixSp, fontWeight = FontWeight.SemiBold, color = subtitleColor)) {
+                                append(unit)
+                            }
+                        }
+                    }
+                }
                 Text(
-                    readingSubtitle,
-                    style = ageStyle,
+                    annotated,
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .semantics { fontSizeSp = ageStyle.fontSize.value }
-                        .testTag("alarmAge")
+                        .semantics {
+                            fontSizeSp = suffixSp.value
+                            contentDescription = when {
+                                ageMs < 60_000L -> "just now"
+                                ageMin in 1..59 -> if (ageMin == 1) "1 minute ago" else "$ageMin minutes ago"
+                                else -> {
+                                    val hrs = ageMin / 60
+                                    if (hrs == 1) "1 hour ago" else "$hrs hours ago"
+                                }
+                            }
+                        }
+                        .testTag("alarmAge"),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
@@ -245,7 +302,7 @@ fun AlarmContent(
         Text(
             text = when (dismissLabel) {
                 "DISMISS" -> "Tap to dismiss"
-                else -> "Press and hold to dismiss"
+                else -> if (cfg.screenWidthDp < 500) "Press and hold\nto dismiss" else "Press and hold to dismiss"
             },
             style = instructionStyle,
             textAlign = TextAlign.Center,
