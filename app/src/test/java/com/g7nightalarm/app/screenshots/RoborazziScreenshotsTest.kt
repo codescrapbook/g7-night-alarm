@@ -222,11 +222,8 @@ class RoborazziScreenshotsTest {
     @Test
     fun trend_icon_orientations_centroid_checks() {
         // Render 45° icons and assert centroid quadrants
-        fun quadrantOf(bitmap: Bitmap): Pair<Boolean, Boolean> {
-            // returns (isRight, isTop) centroid booleans
-            var sumX = 0L
-            var sumY = 0L
-            var mass = 0L
+        fun quadrantStrength(bitmap: Bitmap): Map<String, Long> {
+            val strengths = mutableMapOf("tl" to 0L, "tr" to 0L, "bl" to 0L, "br" to 0L)
             val w = bitmap.width
             val h = bitmap.height
             val pixels = IntArray(w * h)
@@ -241,16 +238,19 @@ class RoborazziScreenshotsTest {
                     // Simple luminance-based mass; ignore fully black pixels
                     val lum = (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt()
                     val m = (a * lum) / 255
-                    if (m > 0) {
-                        mass += m
-                        sumX += m * x
-                        sumY += m * y
+                    if (m <= 0) continue
+                    val right = x >= w / 2
+                    val top = y < h / 2
+                    val key = when {
+                        top && right -> "tr"
+                        top && !right -> "tl"
+                        !top && right -> "br"
+                        else -> "bl"
                     }
+                    strengths[key] = strengths.getValue(key) + m
                 }
             }
-            val cx = sumX.toDouble() / mass.toDouble()
-            val cy = sumY.toDouble() / mass.toDouble()
-            return Pair(cx > w / 2.0, cy < h / 2.0)
+            return strengths
         }
 
         // 45° up (↗): mass on top-right (render via Activity to ensure capture stability)
@@ -264,8 +264,11 @@ class RoborazziScreenshotsTest {
             }
         }
         val upBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_up.png").absolutePath)
-        val (upRight, upTop) = quadrantOf(upBmp)
-        org.junit.Assert.assertTrue(upRight && upTop)
+        val upQ = quadrantStrength(upBmp)
+        // Top-right must dominate
+        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("tl"))
+        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("br"))
+        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("bl"))
 
         // 45° down (↘): mass on bottom-right
         renderAndSavePngActivity("tmp_trend_down.png") {
@@ -278,8 +281,11 @@ class RoborazziScreenshotsTest {
             }
         }
         val downBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_down.png").absolutePath)
-        val (downRight, downTop) = quadrantOf(downBmp)
-        org.junit.Assert.assertTrue(downRight && !downTop)
+        val downQ = quadrantStrength(downBmp)
+        // Bottom-right must dominate
+        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("tr"))
+        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("tl"))
+        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("bl"))
     }
 
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
