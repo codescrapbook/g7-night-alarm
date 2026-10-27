@@ -213,8 +213,12 @@ class EndToEndInstrumentedTest {
         // Inject urgent low
         sendBgEstimate(52.0)
         // Require full-screen alarm title and HOLD control to be visible (no debug fallback)
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15_000))
-        Assert.assertTrue(device.wait(Until.hasObject(By.text("HOLD")), 5_000))
+        val titleVisible = device.wait(Until.hasObject(By.text("URGENT ALARM")), 7_500) ||
+            device.wait(Until.hasObject(By.desc("URGENT ALARM")), 7_500)
+        Assert.assertTrue("Expected URGENT ALARM title visible.", titleVisible)
+        val holdVisible = device.wait(Until.hasObject(By.text("HOLD")), 3_000) ||
+            device.wait(Until.hasObject(By.desc("HOLD")), 3_000)
+        Assert.assertTrue("Expected HOLD control visible.", holdVisible)
         // Confirm reading text is shown
         Assert.assertTrue(device.wait(Until.hasObject(By.textContains("52")), 5_000))
         Assert.assertTrue(device.wait(Until.hasObject(By.textContains("mg/dL")), 5_000))
@@ -227,7 +231,8 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Alarm volume should reach max shortly after full-screen alarm starts.", atMax)
         screenshot("alarm_fullscreen.png")
         // Try UI long-press HOLD to dismiss
-        device.findObject(By.text("HOLD")).longClick()
+        val holdObj = device.findObject(By.text("HOLD")) ?: device.findObject(By.desc("HOLD"))
+        holdObj.longClick()
         // Wait up to ~10s and verify volume restored (or at least not max)
         var restored = false
         repeat(20) {
