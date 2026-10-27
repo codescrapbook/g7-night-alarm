@@ -264,6 +264,7 @@ class RoborazziScreenshotsTest {
                 }
             }
         }
+        composeRule.waitForIdle()
         val upBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val (upRight, upTop) = quadrantOf(upBmp)
         org.junit.Assert.assertTrue(upRight && upTop)
@@ -280,6 +281,7 @@ class RoborazziScreenshotsTest {
                 }
             }
         }
+        composeRule.waitForIdle()
         val downBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val (downRight, downTop) = quadrantOf(downBmp)
         org.junit.Assert.assertTrue(downRight && !downTop)
