@@ -2,6 +2,7 @@ package com.g7nightalarm.app.screenshots
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -252,37 +253,31 @@ class RoborazziScreenshotsTest {
             return Pair(cx > w / 2.0, cy < h / 2.0)
         }
 
-        // 45° up (↗): mass on top-right
-        composeRule.setContent {
-            androidx.compose.material3.MaterialTheme {
-                Box(Modifier.size(200.dp).background(Color.Black)) {
-                    com.g7nightalarm.app.ui.trend.TrendArrowIcon(
-                        direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_UP,
-                        color = Color.White,
-                        size = 160.dp
-                    )
-                }
+        // 45° up (↗): mass on top-right (render via Activity to ensure capture stability)
+        renderAndSavePngActivity("tmp_trend_up.png") {
+            Box(Modifier.size(200.dp).background(Color.Black)) {
+                com.g7nightalarm.app.ui.trend.TrendArrowIcon(
+                    direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_UP,
+                    color = Color.White,
+                    size = 160.dp
+                )
             }
         }
-        composeRule.waitForIdle()
-        val upBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val upBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_up.png").absolutePath)
         val (upRight, upTop) = quadrantOf(upBmp)
         org.junit.Assert.assertTrue(upRight && upTop)
 
         // 45° down (↘): mass on bottom-right
-        composeRule.setContent {
-            androidx.compose.material3.MaterialTheme {
-                Box(Modifier.size(200.dp).background(Color.Black)) {
-                    com.g7nightalarm.app.ui.trend.TrendArrowIcon(
-                        direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_DOWN,
-                        color = Color.White,
-                        size = 160.dp
-                    )
-                }
+        renderAndSavePngActivity("tmp_trend_down.png") {
+            Box(Modifier.size(200.dp).background(Color.Black)) {
+                com.g7nightalarm.app.ui.trend.TrendArrowIcon(
+                    direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_DOWN,
+                    color = Color.White,
+                    size = 160.dp
+                )
             }
         }
-        composeRule.waitForIdle()
-        val downBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val downBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_down.png").absolutePath)
         val (downRight, downTop) = quadrantOf(downBmp)
         org.junit.Assert.assertTrue(downRight && !downTop)
     }
