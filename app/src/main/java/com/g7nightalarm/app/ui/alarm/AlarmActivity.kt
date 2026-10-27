@@ -212,41 +212,55 @@ fun AlarmContent(
             } else {
                 MaterialTheme.typography.displayLarge
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(top = 24.dp)
-                    .semantics {
-                        contentDescription = if (latest == null) {
-                            "No recent reading"
-                        } else {
-                            "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
-                        }
-                        fontSizeSp = readingTextStyle.fontSize.value
+            // Build reading text with an inline arrow to align on the text baseline
+            run {
+                val inlineId = "trendIcon"
+                val annotated = buildAnnotatedString {
+                    append(readingTitle)
+                    append(" ")
+                    appendInlineContent(inlineId, "[trend]")
+                }
+                val arrowSp = readingTextStyle.fontSize * 1.05f
+                val inline = mapOf(
+                    inlineId to androidx.compose.ui.text.InlineTextContent(
+                        placeholder = androidx.compose.ui.text.Placeholder(
+                            width = arrowSp,
+                            height = arrowSp,
+                            placeholderVerticalAlign = androidx.compose.ui.text.PlaceholderVerticalAlign.Center
+                        )
+                    ) {
+                        TrendArrowIcon(
+                            direction = trend.direction,
+                            color = titleColor,
+                            size = with(LocalDensity.current) { arrowSp.toDp() }
+                        )
                     }
-                    .testTag("alarmReadingRow")
-            ) {
+                )
                 Text(
-                    readingTitle,
+                    text = annotated,
+                    inlineContent = inline,
                     style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
                     fontWeight = FontWeight.ExtraBold,
                     maxLines = 1,
-                    softWrap = false
-                )
-                val arrowBase = with(LocalDensity.current) { readingTextStyle.fontSize.toDp() }
-                val arrowSize = if (cfg.screenWidthDp < 500) arrowBase.coerceAtLeast(64.dp) else arrowBase.coerceAtLeast(80.dp)
-                androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
-                TrendArrowIcon(
-                    direction = trend.direction,
-                    color = titleColor,
-                    size = arrowSize
+                    softWrap = false,
+                    modifier = Modifier
+                        .padding(top = 24.dp)
+                        .semantics {
+                            contentDescription = if (latest == null) {
+                                "No recent reading"
+                            } else {
+                                "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
+                            }
+                            fontSizeSp = readingTextStyle.fontSize.value
+                        }
+                        .testTag("alarmReadingRow")
                 )
             }
             // Prominent, centered trend label under the reading
             Text(
                 text = trend.label(),
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 28.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = titleColor,
                     fontFamily = FontFamily.Default

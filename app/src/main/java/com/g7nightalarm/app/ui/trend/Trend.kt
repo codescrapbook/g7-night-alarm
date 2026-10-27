@@ -129,6 +129,16 @@ fun Trend.symbol(): String = when (direction) {
     TrendDirection.UNKNOWN -> "·"
 }
 
+@VisibleForTesting
+fun rotationDegreesFor(direction: TrendDirection): Float? = when (direction) {
+    TrendDirection.DOUBLE_UP, TrendDirection.SINGLE_UP -> 0f
+    TrendDirection.FORTY_FIVE_UP -> 45f // NE
+    TrendDirection.FLAT -> 90f // →
+    TrendDirection.FORTY_FIVE_DOWN -> 135f // SE
+    TrendDirection.SINGLE_DOWN, TrendDirection.DOUBLE_DOWN -> 180f // ↓
+    TrendDirection.UNKNOWN -> null
+}
+
 @Composable
 fun TrendArrowIcon(
     direction: TrendDirection,
@@ -141,9 +151,9 @@ fun TrendArrowIcon(
     Canvas(modifier = modifier.size(size)) {
         val w = size.toPx()
         val h = size.toPx()
-        val sw = maxOf(strokeWidth.toPx(), h * 0.12f) // ensure a visibly thick stroke
-        val shaftLen = h * 0.55f
-        val headSize = h * 0.18f
+        val sw = maxOf(strokeWidth.toPx(), h * 0.16f) // thicker for accessibility
+        val shaftLen = h * 0.60f
+        val headSize = h * 0.20f
         fun drawArrow(angleDeg: Float, offset: Offset = Offset.Zero) {
             rotate(degrees = angleDeg, pivot = center) {
                 // Vertical up arrow centered at canvas center + offset
@@ -166,24 +176,18 @@ fun TrendArrowIcon(
                 drawPath(path = path, color = color)
             }
         }
+        val deg = rotationDegreesFor(direction)
         when (direction) {
             TrendDirection.DOUBLE_UP -> {
-                drawArrow(0f, Offset(-w * 0.16f, 0f))
-                drawArrow(0f, Offset(w * 0.16f, 0f))
+                drawArrow(deg ?: 0f, Offset(-w * 0.16f, 0f))
+                drawArrow(deg ?: 0f, Offset(w * 0.16f, 0f))
             }
-            TrendDirection.SINGLE_UP -> drawArrow(0f)
-            TrendDirection.FORTY_FIVE_UP -> drawArrow(45f) // ↗ (NE)
-            TrendDirection.FLAT -> {
-                // Horizontal → arrow
-                rotate(90f) { drawArrow(0f) }
-            }
-            TrendDirection.FORTY_FIVE_DOWN -> drawArrow(135f) // ↘ (SE)
-            TrendDirection.SINGLE_DOWN -> drawArrow(180f)
             TrendDirection.DOUBLE_DOWN -> {
-                drawArrow(180f, Offset(-w * 0.16f, 0f))
-                drawArrow(180f, Offset(w * 0.16f, 0f))
+                drawArrow(deg ?: 180f, Offset(-w * 0.16f, 0f))
+                drawArrow(deg ?: 180f, Offset(w * 0.16f, 0f))
             }
             TrendDirection.UNKNOWN -> { /* nothing */ }
+            else -> drawArrow(deg ?: 0f)
         }
     }
 }

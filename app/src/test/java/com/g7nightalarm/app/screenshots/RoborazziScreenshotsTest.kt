@@ -197,7 +197,15 @@ class RoborazziScreenshotsTest {
                             size = 96.dp
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(label, color = Color.White, style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp))
+                        Text(
+                            label,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 28.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                        )
                     }
                 }
             }
