@@ -180,11 +180,19 @@ fun AlarmContent(
             modifier = Modifier.padding(top = 12.dp)
         )
         // Current reading (large, high-contrast, plain font)
+        val readingTextStyle = if (cfg.screenWidthDp < 500) {
+            // Use a slightly smaller style on narrow widths to keep value + arrow on one line
+            MaterialTheme.typography.displayMedium
+        } else {
+            MaterialTheme.typography.displayLarge
+        }
         Text(
             readingTitle,
-            style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor),
+            style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
             fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(top = 24.dp)
+            modifier = Modifier.padding(top = 24.dp),
+            maxLines = 1,
+            softWrap = false
         )
         if (readingSubtitle.isNotBlank()) {
             Text(readingSubtitle, color = subtitleColor, modifier = Modifier.padding(top = 8.dp))

@@ -204,64 +204,136 @@ fun SettingsScreen(onBack: () -> Unit) {
             })
         }
         // Low song picker (default melody if none)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("Low song", color = labelColor)
-                val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
-                Text(desc, color = secondaryColor)
-            }
-            Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null) { Text("Pick") }
-            Button(onClick = {
-                scope.launch { repo.update { it.remove(SettingsKeys.musicLowUri) } }
-                musicLowUri = ""
-            }) { Text("Clear") }
-            Button(onClick = {
-                val vol = awakeVol.coerceIn(1, 100)
-                scope.launch {
-                    if (musicLowUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicLowUri))
-                    else alarm.startAwakeMusicLowDefault(vol)
+        if (isNarrow) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text("Low song", color = labelColor)
+                    val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
+                    Text(desc, color = secondaryColor)
                 }
-            }) { Text("Preview") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }
+                    Button(onClick = {
+                        scope.launch { repo.update { it.remove(SettingsKeys.musicLowUri) } }
+                        musicLowUri = ""
+                    }, modifier = Modifier.weight(1f)) { Text("Clear") }
+                    Button(onClick = {
+                        val vol = awakeVol.coerceIn(1, 100)
+                        scope.launch {
+                            if (musicLowUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicLowUri))
+                            else alarm.startAwakeMusicLowDefault(vol)
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Preview") }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Low song", color = labelColor)
+                    val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
+                    Text(desc, color = secondaryColor)
+                }
+                Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null) { Text("Pick") }
+                Button(onClick = {
+                    scope.launch { repo.update { it.remove(SettingsKeys.musicLowUri) } }
+                    musicLowUri = ""
+                }) { Text("Clear") }
+                Button(onClick = {
+                    val vol = awakeVol.coerceIn(1, 100)
+                    scope.launch {
+                        if (musicLowUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicLowUri))
+                        else alarm.startAwakeMusicLowDefault(vol)
+                    }
+                }) { Text("Preview") }
+            }
         }
         // High song picker
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("High song", color = labelColor)
-                val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
-                Text(desc, color = secondaryColor)
-            }
-            Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null) { Text("Pick") }
-            Button(onClick = {
-                scope.launch { repo.update { it.remove(SettingsKeys.musicHighUri) } }
-                musicHighUri = ""
-            }) { Text("Clear") }
-            Button(onClick = {
-                val vol = awakeVol.coerceIn(1, 100)
-                scope.launch {
-                    if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
-                    else alarm.startAwakeMusicHighDefault(vol)
+        if (isNarrow) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text("High song", color = labelColor)
+                    val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
+                    Text(desc, color = secondaryColor)
                 }
-            }) { Text("Preview") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }
+                    Button(onClick = {
+                        scope.launch { repo.update { it.remove(SettingsKeys.musicHighUri) } }
+                        musicHighUri = ""
+                    }, modifier = Modifier.weight(1f)) { Text("Clear") }
+                    Button(onClick = {
+                        val vol = awakeVol.coerceIn(1, 100)
+                        scope.launch {
+                            if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
+                            else alarm.startAwakeMusicHighDefault(vol)
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Preview") }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("High song", color = labelColor)
+                    val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
+                    Text(desc, color = secondaryColor)
+                }
+                Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null) { Text("Pick") }
+                Button(onClick = {
+                    scope.launch { repo.update { it.remove(SettingsKeys.musicHighUri) } }
+                    musicHighUri = ""
+                }) { Text("Clear") }
+                Button(onClick = {
+                    val vol = awakeVol.coerceIn(1, 100)
+                    scope.launch {
+                        if (musicHighUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicHighUri))
+                        else alarm.startAwakeMusicHighDefault(vol)
+                    }
+                }) { Text("Preview") }
+            }
         }
         // Signal lost song picker
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("Signal lost song", color = labelColor)
-                val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
-                Text(desc, color = secondaryColor)
-            }
-            Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null) { Text("Pick") }
-            Button(onClick = {
-                scope.launch { repo.update { it.remove(SettingsKeys.musicSignalUri) } }
-                musicSignalUri = ""
-            }) { Text("Clear") }
-            Button(onClick = {
-                val vol = awakeVol.coerceIn(1, 100)
-                scope.launch {
-                    if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
-                    else alarm.startAwakeMusicSignalDefault(vol)
+        if (isNarrow) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth()) {
+                    Text("Signal lost song", color = labelColor)
+                    val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
+                    Text(desc, color = secondaryColor)
                 }
-            }) { Text("Preview") }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }
+                    Button(onClick = {
+                        scope.launch { repo.update { it.remove(SettingsKeys.musicSignalUri) } }
+                        musicSignalUri = ""
+                    }, modifier = Modifier.weight(1f)) { Text("Clear") }
+                    Button(onClick = {
+                        val vol = awakeVol.coerceIn(1, 100)
+                        scope.launch {
+                            if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
+                            else alarm.startAwakeMusicSignalDefault(vol)
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Preview") }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Signal lost song", color = labelColor)
+                    val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
+                    Text(desc, color = secondaryColor)
+                }
+                Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null) { Text("Pick") }
+                Button(onClick = {
+                    scope.launch { repo.update { it.remove(SettingsKeys.musicSignalUri) } }
+                    musicSignalUri = ""
+                }) { Text("Clear") }
+                Button(onClick = {
+                    val vol = awakeVol.coerceIn(1, 100)
+                    scope.launch {
+                        if (musicSignalUri.isNotBlank()) alarm.startAwakeMusicFromUri(vol, Uri.parse(musicSignalUri))
+                        else alarm.startAwakeMusicSignalDefault(vol)
+                    }
+                }) { Text("Preview") }
+            }
         }
         Text("Awake volume: $awakeVol%", style = MaterialTheme.typography.titleMedium, color = labelColor)
         Slider(value = awakeVol.toFloat(), onValueChange = { v -> awakeVol = v.toInt().coerceIn(1, 100) }, valueRange = 1f..100f)
