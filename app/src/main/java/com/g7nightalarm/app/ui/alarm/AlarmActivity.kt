@@ -78,13 +78,15 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
             }
         }
     }
-    val bgBase = when (type) {
-        AlarmActionReceiver.TYPE_HIGH -> Color(0xFFFBC02D)
-        AlarmActionReceiver.TYPE_SIGNAL -> Color(0xFF455A64)
-        AlarmActionReceiver.TYPE_LOW_WARN -> Color(0xFF1976D2)
-        else -> Color(0xFFB00020) // urgent/low default
+    val (cA, cB, titleColor, subtitleColor) = when (type) {
+        AlarmActionReceiver.TYPE_URGENT -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color(0xFFE0E0E0))
+        AlarmActionReceiver.TYPE_LOW -> Quad(Color(0xFFAA2E00), Color(0xFFD84315), Color.White, Color(0xFFE0E0E0))
+        AlarmActionReceiver.TYPE_HIGH -> Quad(Color(0xFFFFA000), Color(0xFFFF8F00), Color.Black, Color(0xFF1A1A1A))
+        AlarmActionReceiver.TYPE_SIGNAL -> Quad(Color(0xFF37474F), Color(0xFF455A64), Color.White, Color(0xFFE0E0E0))
+        AlarmActionReceiver.TYPE_LOW_WARN -> Quad(Color(0xFF0D47A1), Color(0xFF1976D2), Color.White, Color(0xFFE0E0E0))
+        else -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color(0xFFE0E0E0))
     }
-    val bg = if (animationsEnabled) bgBase.copy(alpha = 0.4f + 0.6f * flashing.value) else bgBase.copy(alpha = 0.8f)
+    val bg = if (animationsEnabled) androidx.compose.ui.graphics.lerp(cA, cB, flashing.value) else cB
     val holding = remember { mutableStateOf(false) }
     val holdMs = 1500L
     val (title, subtitle, dismissLabel) = when (type) {
@@ -92,6 +94,7 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
         AlarmActionReceiver.TYPE_HIGH -> Triple("HIGH ALARM", "Press and hold to dismiss", "DISMISS")
         AlarmActionReceiver.TYPE_SIGNAL -> Triple("SIGNAL LOST", "Press and hold to dismiss", "DISMISS")
         AlarmActionReceiver.TYPE_LOW -> Triple("LOW ALARM", "Press and hold to dismiss", "HOLD")
+        AlarmActionReceiver.TYPE_URGENT -> Triple("URGENT ALARM", "Press and hold to dismiss", "HOLD")
         else -> Triple("URGENT ALARM", "Press and hold to dismiss", "HOLD")
     }
     Column(
@@ -102,8 +105,8 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(title, style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default), fontWeight = FontWeight.ExtraBold)
-        Text(subtitle, color = Color.LightGray, modifier = Modifier.padding(top = 16.dp))
+        Text(title, style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor), fontWeight = FontWeight.ExtraBold)
+        Text(subtitle, color = subtitleColor, modifier = Modifier.padding(top = 16.dp))
         Box(
             modifier = Modifier
                 .padding(top = 48.dp)
@@ -135,4 +138,11 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
         }
     }
 }
+
+// Helper record for color tuple
+private data class Quad(val a: Color, val b: Color, val title: Color, val subtitle: Color)
+private operator fun Quad.component1() = a
+private operator fun Quad.component2() = b
+private operator fun Quad.component3() = title
+private operator fun Quad.component4() = subtitle
 

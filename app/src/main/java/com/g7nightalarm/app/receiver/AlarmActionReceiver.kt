@@ -38,6 +38,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_CLEAR = "com.g7nightalarm.CLEAR_ALARM"
         const val EXTRA_TYPE = "type"
+        const val TYPE_URGENT = "urgent"
         const val TYPE_LOW_WARN = "low_warn"
         const val TYPE_LOW = "low"
         const val TYPE_HIGH = "high"
