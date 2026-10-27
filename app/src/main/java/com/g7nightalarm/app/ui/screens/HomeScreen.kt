@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.mode.AppMode
 import com.g7nightalarm.app.mode.ModeRepository
@@ -100,26 +102,7 @@ fun HomeScreen(
         val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
             try { nm?.canUseFullScreenIntent() == true } catch (_: Throwable) { false }
         } else true
-        // Subtle stitched border decoration (does not affect layout or readability)
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            val stitchColor = Color(0xFFC62828)
-            val stitchLen = 12f
-            val gap = 8f
-            var x = 0f
-            while (x < w) {
-                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(x, 0f), size = androidx.compose.ui.geometry.Size(stitchLen, 2f))
-                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(x, h - 2f), size = androidx.compose.ui.geometry.Size(stitchLen, 2f))
-                x += stitchLen + gap
-            }
-            var y = 0f
-            while (y < h) {
-                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(0f, y), size = androidx.compose.ui.geometry.Size(2f, stitchLen))
-                drawRect(color = stitchColor, topLeft = androidx.compose.ui.geometry.Offset(w - 2f, y), size = androidx.compose.ui.geometry.Size(2f, stitchLen))
-                y += stitchLen + gap
-            }
-        }
+        // Note: Removed decorative border to keep production and screenshots clean and high-contrast
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,19 +143,44 @@ fun HomeScreen(
             color = MaterialTheme.colorScheme.secondary,
             style = MaterialTheme.typography.headlineLarge
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                // High-contrast, large digits readable at distance
-                Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
-                Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
+        val cfg = LocalConfiguration.current
+        val isNarrow = cfg.screenWidthDp < 500
+        if (isNarrow) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column {
+                    Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
+                    Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
+                }
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("settingsButton"),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("Settings") }
             }
-            Button(
-                onClick = onOpenSettings,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) { Text("Settings") }
+        } else {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    // High-contrast, large digits readable at distance
+                    Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
+                    Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
+                }
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .height(56.dp)
+                        .testTag("settingsButton"),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("Settings") }
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(

@@ -11,6 +11,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.activity.ComponentActivity
@@ -391,6 +393,15 @@ class RoborazziScreenshotsTest {
             val hist = buildHistory(3, now, 120.0, "Flat")
             setUnits(Units.MG_DL)
             setMode(true)
+            // Assert Settings button visibility and size before capturing
+            composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } } }
+            composeRule.waitUntil(5_000) {
+                try {
+                    composeRule.onNodeWithText("Settings").assertExists()
+                    composeRule.onNodeWithTag("settingsButton").assertWidthIsAtLeast(48.dp)
+                    true
+                } catch (_: AssertionError) { false }
+            }
             renderAndSavePngActivity("phone_home_sleep_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } }
         }
     }
