@@ -218,6 +218,73 @@ class RoborazziScreenshotsTest {
         }
     }
 
+    @Test
+    fun trend_icon_orientations_centroid_checks() {
+        // Render 45° icons and assert centroid quadrants
+        fun quadrantOf(bitmap: Bitmap): Pair<Boolean, Boolean> {
+            // returns (isRight, isTop) centroid booleans
+            var sumX = 0L
+            var sumY = 0L
+            var mass = 0L
+            val w = bitmap.width
+            val h = bitmap.height
+            val pixels = IntArray(w * h)
+            bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+            for (y in 0 until h) {
+                for (x in 0 until w) {
+                    val p = pixels[y * w + x]
+                    val a = (p ushr 24) and 0xFF
+                    val r = (p ushr 16) and 0xFF
+                    val g = (p ushr 8) and 0xFF
+                    val b = p and 0xFF
+                    // Simple luminance-based mass; ignore fully black pixels
+                    val lum = (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt()
+                    val m = (a * lum) / 255
+                    if (m > 0) {
+                        mass += m
+                        sumX += m * x
+                        sumY += m * y
+                    }
+                }
+            }
+            val cx = sumX.toDouble() / mass.toDouble()
+            val cy = sumY.toDouble() / mass.toDouble()
+            return Pair(cx > w / 2.0, cy < h / 2.0)
+        }
+
+        // 45° up (↗): mass on top-right
+        composeRule.setContent {
+            androidx.compose.material3.MaterialTheme {
+                Box(Modifier.size(200.dp).background(Color.Black)) {
+                    com.g7nightalarm.app.ui.trend.TrendArrowIcon(
+                        direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_UP,
+                        color = Color.White,
+                        size = 160.dp
+                    )
+                }
+            }
+        }
+        val upBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val (upRight, upTop) = quadrantOf(upBmp)
+        org.junit.Assert.assertTrue(upRight && upTop)
+
+        // 45° down (↘): mass on bottom-right
+        composeRule.setContent {
+            androidx.compose.material3.MaterialTheme {
+                Box(Modifier.size(200.dp).background(Color.Black)) {
+                    com.g7nightalarm.app.ui.trend.TrendArrowIcon(
+                        direction = com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_DOWN,
+                        color = Color.White,
+                        size = 160.dp
+                    )
+                }
+            }
+        }
+        val downBmp = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        val (downRight, downTop) = quadrantOf(downBmp)
+        org.junit.Assert.assertTrue(downRight && !downTop)
+    }
+
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
         val points = hours * 12
         val list = ArrayList<GlucoseReading>(points + 2)

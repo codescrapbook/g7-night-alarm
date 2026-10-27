@@ -212,10 +212,8 @@ fun AlarmContent(
             } else {
                 MaterialTheme.typography.displayLarge
             }
-            Text(
-                readingTitle,
-                style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
-                fontWeight = FontWeight.ExtraBold,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .padding(top = 24.dp)
                     .semantics {
@@ -226,50 +224,39 @@ fun AlarmContent(
                         }
                         fontSizeSp = readingTextStyle.fontSize.value
                     }
-                    .testTag("alarmReading"),
-                maxLines = 1,
-                softWrap = false
-            )
-            // Prominent trend arrow and label
-            val arrowSize = with(LocalDensity.current) { readingTextStyle.fontSize.toDp() }
-            if (trend.direction != TrendDirection.UNKNOWN) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .semantics { contentDescription = trend.contentDescription() }
-                ) {
-                    TrendArrowIcon(
-                        direction = trend.direction,
-                        color = titleColor,
-                        size = arrowSize,
-                        modifier = Modifier.sizeIn(minWidth = arrowSize, minHeight = arrowSize)
-                    )
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = trend.label(),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = titleColor,
-                            fontFamily = FontFamily.Default
-                        )
-                    )
-                }
-            } else {
+                    .testTag("alarmReadingRow")
+            ) {
                 Text(
-                    text = "Trend unknown",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = titleColor,
-                        fontFamily = FontFamily.Default
-                    ),
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .semantics { contentDescription = "Trend unknown" }
+                    readingTitle,
+                    style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                val arrowBase = with(LocalDensity.current) { readingTextStyle.fontSize.toDp() }
+                val arrowSize = if (cfg.screenWidthDp < 500) arrowBase.coerceAtLeast(64.dp) else arrowBase.coerceAtLeast(80.dp)
+                androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
+                TrendArrowIcon(
+                    direction = trend.direction,
+                    color = titleColor,
+                    size = arrowSize
                 )
             }
+            // Prominent, centered trend label under the reading
+            Text(
+                text = trend.label(),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor,
+                    fontFamily = FontFamily.Default
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .semantics { contentDescription = trend.contentDescription() }
+            )
             if (agePhrase.isNotBlank()) {
                 // Build an annotated single-line age string with bold number at least 40sp
                 val density = androidx.compose.ui.platform.LocalDensity.current

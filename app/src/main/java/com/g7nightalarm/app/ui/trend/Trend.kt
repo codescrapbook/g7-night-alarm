@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.data.GlucoseReading
@@ -134,13 +135,13 @@ fun TrendArrowIcon(
     color: Color,
     size: Dp,
     modifier: Modifier = Modifier,
-    strokeWidth: Dp = 8.dp
+    strokeWidth: Dp = 10.dp
 ) {
     // Draw simple thick arrows using Canvas; duplicate for "double" variants.
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.size(size)) {
         val w = size.toPx()
         val h = size.toPx()
-        val sw = strokeWidth.toPx()
+        val sw = maxOf(strokeWidth.toPx(), h * 0.12f) // ensure a visibly thick stroke
         val shaftLen = h * 0.55f
         val headSize = h * 0.18f
         fun drawArrow(angleDeg: Float, offset: Offset = Offset.Zero) {
@@ -167,20 +168,20 @@ fun TrendArrowIcon(
         }
         when (direction) {
             TrendDirection.DOUBLE_UP -> {
-                drawArrow(0f, Offset(-w * 0.08f, 0f))
-                drawArrow(0f, Offset(w * 0.08f, 0f))
+                drawArrow(0f, Offset(-w * 0.16f, 0f))
+                drawArrow(0f, Offset(w * 0.16f, 0f))
             }
             TrendDirection.SINGLE_UP -> drawArrow(0f)
-            TrendDirection.FORTY_FIVE_UP -> drawArrow(-45f)
+            TrendDirection.FORTY_FIVE_UP -> drawArrow(45f) // ↗ (NE)
             TrendDirection.FLAT -> {
                 // Horizontal → arrow
                 rotate(90f) { drawArrow(0f) }
             }
-            TrendDirection.FORTY_FIVE_DOWN -> drawArrow(225f) // -135
+            TrendDirection.FORTY_FIVE_DOWN -> drawArrow(135f) // ↘ (SE)
             TrendDirection.SINGLE_DOWN -> drawArrow(180f)
             TrendDirection.DOUBLE_DOWN -> {
-                drawArrow(180f, Offset(-w * 0.08f, 0f))
-                drawArrow(180f, Offset(w * 0.08f, 0f))
+                drawArrow(180f, Offset(-w * 0.16f, 0f))
+                drawArrow(180f, Offset(w * 0.16f, 0f))
             }
             TrendDirection.UNKNOWN -> { /* nothing */ }
         }

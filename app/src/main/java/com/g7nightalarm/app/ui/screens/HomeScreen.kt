@@ -159,29 +159,20 @@ fun HomeScreen(
                             contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
                         }
                     )
-                    // Trend arrow + label
-                    val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp() }
-                    if (trend.direction != TrendDirection.UNKNOWN) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .semantics { contentDescription = trend.contentDescription() }
-                        ) {
-                            TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                trend.label(),
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
-                            )
-                        }
-                    } else {
+                    // Inline arrow and centered label
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .semantics { contentDescription = trend.contentDescription() }
+                    ) {
+                        val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp().coerceAtLeast(48.dp) }
+                        TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            "Trend unknown",
+                            trend.label(),
                             color = Color.White,
-                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default),
-                            modifier = Modifier.padding(top = 4.dp)
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
                         )
                     }
                     Text(
@@ -216,28 +207,19 @@ fun HomeScreen(
                             contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
                         }
                     )
-                    val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp() }
-                    if (trend.direction != TrendDirection.UNKNOWN) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(top = 4.dp)
-                                .semantics { contentDescription = trend.contentDescription() }
-                        ) {
-                            TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                trend.label(),
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
-                            )
-                        }
-                    } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .semantics { contentDescription = trend.contentDescription() }
+                    ) {
+                        val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp().coerceAtLeast(48.dp) }
+                        TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            "Trend unknown",
+                            trend.label(),
                             color = Color.White,
-                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default),
-                            modifier = Modifier.padding(top = 4.dp)
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
                         )
                     }
                     Text(
