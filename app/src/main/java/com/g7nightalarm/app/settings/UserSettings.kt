@@ -49,6 +49,8 @@ data class SettingsState(
     val musicSignalUri: String? = null,
     // Monotonic timestamp of last reading arrival (elapsed clock)
     val lastReadingAtMs: Long = 0L,
+    // Monotonic timestamp when monitoring started (elapsed clock)
+    val monitoringStartedAtMs: Long = 0L,
     val lastLowWarnClearAt: Long = 0L,
     val lastLowClearAt: Long = 0L,
     val lastHighClearAt: Long = 0L,
@@ -86,6 +88,8 @@ object SettingsKeys {
     val musicSignalUri = stringPreferencesKey("music_signal_uri")
     // Monotonic timestamp of last data arrival
     val lastReadingAt = longPreferencesKey("last_reading_at_elapsed")
+    // Monotonic timestamp when monitoring started
+    val monitoringStartedAt = longPreferencesKey("monitoring_started_at_elapsed")
 }
 
 class SettingsRepository(private val context: Context) {
@@ -119,6 +123,7 @@ class SettingsRepository(private val context: Context) {
             musicHighUri = prefs[SettingsKeys.musicHighUri],
             musicSignalUri = prefs[SettingsKeys.musicSignalUri],
             lastReadingAtMs = prefs[SettingsKeys.lastReadingAt] ?: 0L,
+            monitoringStartedAtMs = prefs[SettingsKeys.monitoringStartedAt] ?: 0L,
             lastLowWarnClearAt = prefs[SettingsKeys.lastLowWarnClearAt] ?: 0L,
             lastLowClearAt = prefs[SettingsKeys.lastLowClearAt] ?: 0L,
             lastHighClearAt = prefs[SettingsKeys.lastHighClearAt] ?: 0L,

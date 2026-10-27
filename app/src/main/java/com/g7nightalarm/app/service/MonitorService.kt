@@ -110,6 +110,15 @@ class MonitorService : Service() {
         alarmController = AlarmController(this)
         tts = TtsManager(this)
         tts.ensure()
+        // Record monitoring start on first boot so NoData staleness uses a real baseline
+        scope.launch {
+            try {
+                val s = settings.flow.first()
+                if (s.monitoringStartedAtMs <= 0L) {
+                    settings.update { p -> p[com.g7nightalarm.app.settings.SettingsKeys.monitoringStartedAt] = ClockHolder.nowMs() }
+                }
+            } catch (_: Throwable) {}
+        }
 
         startForeground(MONITOR_NOTIF_ID, buildMonitorNotification(null))
 

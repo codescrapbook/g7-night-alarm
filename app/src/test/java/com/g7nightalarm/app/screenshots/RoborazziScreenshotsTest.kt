@@ -247,10 +247,12 @@ class RoborazziScreenshotsTest {
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
         composeRule.waitUntil(5_000) {
             try {
+                composeRule.onNodeWithText("URGENT ALARM").assertExists()
                 composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
                 true
             } catch (_: AssertionError) { false }
         }
+        composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
         composeRule.onNodeWithText("m ago", substring = true).assertExists()
@@ -411,9 +413,14 @@ class RoborazziScreenshotsTest {
         val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test")
         composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
         composeRule.waitUntil(5_000) {
-            try { composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists(); true }
+            try {
+                composeRule.onNodeWithText("URGENT ALARM").assertExists()
+                composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
+                true
+            }
             catch (_: AssertionError) { false }
         }
+            composeRule.onNodeWithText("URGENT ALARM").assertExists()
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
             composeRule.onNodeWithText("m ago", substring = true).assertExists()

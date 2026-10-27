@@ -21,16 +21,23 @@ class AlarmEvaluator {
         nowMs: Long,
         settings: SettingsState
     ): AlarmEvent {
-        // If we have no latest reading, still compute staleness minutes from the monotonic clock when available,
-        // so callers see the real elapsed time rather than the threshold value.
+        // If we have no latest reading, compute staleness from the best available baseline:
+        // max(lastReadingAtMs, monitoringStartedAtMs) on the monotonic clock.
         if (latest == null) {
-            val lastAt = settings.lastReadingAtMs
-            if (lastAt <= 0L) {
-                // No basis to measure staleness yet — avoid spurious signal-lost on cold start
-                return AlarmEvent.None
+            val base = when {
+                settings.lastReadingAtMs > 0L && settings.monitoringStartedAtMs > 0L ->
+                    kotlin.math.max(settings.lastReadingAtMs, settings.monitoringStartedAtMs)
+                settings.lastReadingAtMs > 0L -> settings.lastReadingAtMs
+                settings.monitoringStartedAtMs != 0L -> settings.monitoringStartedAtMs
+                else -> 0L
             }
-            val ageMin = ((nowMs - lastAt) / 60000.0).toInt()
-            return AlarmEvent.NoData(ageMin)
+            if (base == 0L) return AlarmEvent.None
+            val ageMin = ((nowMs - base) / 60000.0).toInt()
+            return if (ageMin >= settings.thresholds.noDataMinutes) {
+                AlarmEvent.NoData(ageMin)
+            } else {
+                AlarmEvent.None
+            }
         }
 
         val lastAt = settings.lastReadingAtMs
@@ -41,9 +48,7 @@ class AlarmEvaluator {
             // Fallback: both values should share the same basis (caller provides nowMs accordingly)
             ((nowMs - latest.timestamp) / 60000.0).toInt()
         }
-        if (ageMin >= settings.thresholds.noDataMinutes) {
-            return AlarmEvent.NoData(ageMin)
-        }
+        if (ageMin >= settings.thresholds.noDataMinutes) return AlarmEvent.NoData(ageMin)
 
         val mgdl = latest.mgdl
         if (mgdl <= settings.thresholds.urgentLow) {

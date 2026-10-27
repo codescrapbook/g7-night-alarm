@@ -164,18 +164,11 @@ fun AlarmContent(
         } else {
             MaterialTheme.typography.displayLarge
         }
-        // Title rendered via a native TextView to ensure robust accessibility exposure on all AVDs
-        AndroidView(
-            factory = { ctx ->
-                TextView(ctx).apply {
-                    text = title
-                    setTextColor(titleColor.toArgb())
-                    gravity = Gravity.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
-                    val sp = if (cfg.screenWidthDp < 500) 36f else 48f
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
-                }
-            },
+        Text(
+            title,
+            style = titleTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
