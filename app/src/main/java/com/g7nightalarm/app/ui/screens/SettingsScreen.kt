@@ -108,7 +108,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineLarge)
+        val labelColor = MaterialTheme.colorScheme.onBackground
+        val secondaryColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
+        Text("Settings", style = MaterialTheme.typography.headlineLarge, color = labelColor)
         // Subtle purple stitch under the header for theme continuity
         androidx.compose.foundation.Canvas(
             modifier = Modifier
@@ -151,18 +153,18 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Voice control (\"good night/morning\")")
+                Text("Voice control (\"good night/morning\")", color = labelColor)
                 Switch(checked = voiceEnabled, onCheckedChange = { voiceEnabled = it })
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Safety-net urgent/no-data 30m = full alarm")
+                Text("Safety-net urgent/no-data 30m = full alarm", color = labelColor)
                 Switch(checked = safetyNetFull, onCheckedChange = { safetyNetFull = it })
             }
         }
         // Music Mode section
-        Text("Music Mode (awake only)", style = MaterialTheme.typography.titleLarge)
+        Text("Music Mode (awake only)", style = MaterialTheme.typography.titleLarge, color = labelColor)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Enable Music Mode")
+            Text("Enable Music Mode", color = labelColor)
             Switch(checked = musicMode, onCheckedChange = {
                 musicMode = it
                 scope.launch { repo.update { p -> p[SettingsKeys.musicModeEnabled] = it } }
@@ -171,9 +173,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         // Low song picker (default melody if none)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("Low song")
+                Text("Low song", color = labelColor)
                 val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
-                Text(desc)
+                Text(desc, color = secondaryColor)
             }
             Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null) { Text("Pick") }
             Button(onClick = {
@@ -191,9 +193,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         // High song picker
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("High song")
+                Text("High song", color = labelColor)
                 val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
-                Text(desc)
+                Text(desc, color = secondaryColor)
             }
             Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null) { Text("Pick") }
             Button(onClick = {
@@ -211,9 +213,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         // Signal lost song picker
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
-                Text("Signal lost song")
+                Text("Signal lost song", color = labelColor)
                 val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
-                Text(desc)
+                Text(desc, color = secondaryColor)
             }
             Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null) { Text("Pick") }
             Button(onClick = {
@@ -228,14 +230,14 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }) { Text("Preview") }
         }
-        Text("Awake volume: $awakeVol%", style = MaterialTheme.typography.titleMedium)
+        Text("Awake volume: $awakeVol%", style = MaterialTheme.typography.titleMedium, color = labelColor)
         Slider(value = awakeVol.toFloat(), onValueChange = { v -> awakeVol = v.toInt().coerceIn(1, 100) }, valueRange = 1f..100f)
         Button(onClick = {
             val am = com.g7nightalarm.app.alarm.AlarmController(context)
             scope.launch { am.previewAwakeChime(awakeVol) }
         }) { Text("Preview volume") }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Units: ${if (state.units == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"}")
+            Text("Units: ${if (state.units == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"}", color = labelColor)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = {
                     val next = if (state.units == com.g7nightalarm.app.settings.Units.MG_DL)
@@ -272,7 +274,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Button(onClick = { onBack() }) { Text("Back") }
         }
         Spacer(Modifier.weight(1f))
-        Text("Permissions & setup")
+        Text("Permissions & setup", color = labelColor)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= 33) {
@@ -291,7 +293,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }) { Text("Do Not Disturb access") }
         }
-        Text("Offline voice: enabling Voice control downloads the small English model automatically.")
+        Text("Offline voice: enabling Voice control downloads the small English model automatically.", color = secondaryColor)
         Button(onClick = { alarm.startAlarm() }) { Text("Test alarm") }
     }
 }
