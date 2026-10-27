@@ -25,12 +25,11 @@ class AlarmEvaluator {
         // so callers see the real elapsed time rather than the threshold value.
         if (latest == null) {
             val lastAt = settings.lastReadingAtMs
-            val ageMin = if (lastAt > 0L) {
-                ((nowMs - lastAt) / 60000.0).toInt()
-            } else {
-                // No basis: fall back to threshold minutes to preserve prior behavior
-                settings.thresholds.noDataMinutes
+            if (lastAt <= 0L) {
+                // No basis to measure staleness yet — avoid spurious signal-lost on cold start
+                return AlarmEvent.None
             }
+            val ageMin = ((nowMs - lastAt) / 60000.0).toInt()
             return AlarmEvent.NoData(ageMin)
         }
 
