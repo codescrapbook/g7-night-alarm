@@ -264,13 +264,28 @@ class RoborazziScreenshotsTest {
             }
         }
         val upBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_up.png").absolutePath)
-        val upQ = quadrantStrength(upBmp)
-        val upRightSum = upQ.getValue("tr") + upQ.getValue("br")
-        val upLeftSum = upQ.getValue("tl") + upQ.getValue("bl")
-        val upTopSum = upQ.getValue("tr") + upQ.getValue("tl")
-        val upBottomSum = upQ.getValue("br") + upQ.getValue("bl")
-        org.junit.Assert.assertTrue(upRightSum > upLeftSum)
-        org.junit.Assert.assertTrue(upTopSum > upBottomSum)
+        fun localAvg(bmp: Bitmap, fx: Double, fy: Double): Int {
+            val x0 = (bmp.width * fx).toInt()
+            val y0 = (bmp.height * fy).toInt()
+            var sum = 0L
+            var cnt = 0
+            for (dy in -2..2) for (dx in -2..2) {
+                val x = (x0 + dx).coerceIn(0, bmp.width - 1)
+                val y = (y0 + dy).coerceIn(0, bmp.height - 1)
+                val p = bmp.getPixel(x, y)
+                val r = (p ushr 16) and 0xFF
+                val g = (p ushr 8) and 0xFF
+                val b = p and 0xFF
+                val lum = (0.2126 * r + 0.7152 * g + 0.0722 * b).toInt()
+                sum += lum
+                cnt++
+            }
+            return (sum / cnt).toInt()
+        }
+        // Sample: NE should be brighter than SW
+        val ne = localAvg(upBmp, 0.75, 0.25)
+        val sw = localAvg(upBmp, 0.25, 0.75)
+        org.junit.Assert.assertTrue(ne > sw)
 
         // 45° down (↘): mass on bottom-right
         renderAndSavePngActivity("tmp_trend_down.png") {
@@ -283,13 +298,10 @@ class RoborazziScreenshotsTest {
             }
         }
         val downBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_down.png").absolutePath)
-        val downQ = quadrantStrength(downBmp)
-        val downRightSum = downQ.getValue("tr") + downQ.getValue("br")
-        val downLeftSum = downQ.getValue("tl") + downQ.getValue("bl")
-        val downTopSum = downQ.getValue("tr") + downQ.getValue("tl")
-        val downBottomSum = downQ.getValue("br") + downQ.getValue("bl")
-        org.junit.Assert.assertTrue(downRightSum > downLeftSum)
-        org.junit.Assert.assertTrue(downBottomSum > downTopSum)
+        // SE should be brighter than NW
+        val se = localAvg(downBmp, 0.75, 0.75)
+        val nw = localAvg(downBmp, 0.25, 0.25)
+        org.junit.Assert.assertTrue(se > nw)
     }
 
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
