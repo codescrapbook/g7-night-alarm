@@ -85,6 +85,12 @@ This repo includes a GitHub Actions workflow to build on CI:
 - Instrumented job runs connected tests on an emulator (API 30 and 34, tablet profile, landscape) and uploads JUnit reports, logcat, and emulator screenshots.
 - Optional Firebase Test Lab job (manual dispatch or push to `main`) runs the instrumented suite on one physical and one virtual device if secrets are configured.
 
+Deprecated prereleases (DO NOT USE)
+-----------------------------------
+- v0.0.0-4655-undead-ci-1 — superseded
+- v0.0.0-4655-stability — superseded
+- v0.0.0-4655-undead-rebrand — superseded
+
 Third‑party fonts
 -----------------
 - Creepster Regular by Sorkin Type, licensed under the SIL Open Font License 1.1. Included only for decorative headings; numeric readouts, buttons, and alarm text remain in plain, high‑contrast fonts for safety. See `third_party/licenses/creepster-OFL-1.1.txt` for the full license.
