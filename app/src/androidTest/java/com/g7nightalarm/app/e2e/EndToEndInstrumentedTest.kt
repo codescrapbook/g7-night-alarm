@@ -81,6 +81,8 @@ class EndToEndInstrumentedTest {
         }
         device.executeShellCommand("cmd appops set ${context.packageName} RUN_IN_BACKGROUND allow")
         device.executeShellCommand("cmd appops set ${context.packageName} WAKE_LOCK allow")
+        // Android 14+: allow full-screen intent special access so full-screen alarms can appear
+        try { device.executeShellCommand("appops set ${context.packageName} USE_FULL_SCREEN_INTENT allow") } catch (_: Throwable) { }
     }
 
     private fun sendBgEstimate(mgdl: Double, slopePerMin: Double? = null, ts: Long = System.currentTimeMillis()) {
@@ -210,6 +212,12 @@ class EndToEndInstrumentedTest {
         }
         // Inject urgent low
         sendBgEstimate(52.0)
+        // Require full-screen alarm title and HOLD control to be visible (no debug fallback)
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("URGENT ALARM")), 15_000))
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("HOLD")), 5_000))
+        // Confirm reading text is shown
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("52")), 5_000))
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("mg/dL")), 5_000))
         // Volume forced to max (allow small async delay on newer Android)
         var atMax = false
         repeat(120) {
@@ -219,11 +227,7 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Alarm volume should reach max shortly after full-screen alarm starts.", atMax)
         screenshot("alarm_fullscreen.png")
         // Try UI long-press HOLD to dismiss
-        if (device.wait(Until.hasObject(By.text("HOLD")), 3000)) {
-            device.findObject(By.text("HOLD")).longClick()
-        }
-        // Also send debug-only fallback to ensure the full alarm is stopped (restores volume)
-        context.sendBroadcast(Intent(com.g7nightalarm.app.receiver.TestStopAlarmReceiver.ACTION_STOP_FULL_ALARM))
+        device.findObject(By.text("HOLD")).longClick()
         // Wait up to ~10s and verify volume restored (or at least not max)
         var restored = false
         repeat(20) {

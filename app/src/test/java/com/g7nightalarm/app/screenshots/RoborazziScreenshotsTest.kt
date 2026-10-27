@@ -239,15 +239,35 @@ class RoborazziScreenshotsTest {
         val now = System.currentTimeMillis()
         val db = AppDatabase.get(context).glucoseDao()
         runBlocking {
-            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-            db.insert(GlucoseReading(timestamp = now, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now - 6 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
         }
         setUnits(Units.MG_DL)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false) } } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
+                true
+            } catch (_: AssertionError) { false }
+        }
         composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
+        composeRule.onNodeWithText("↘", substring = true).assertExists()
+        composeRule.onNodeWithText("m ago", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
-        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}) } }
+        // Render via activity using previewLatest to ensure deterministic text
+        renderAndSavePngActivity("alarm_urgent.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
     }
 
     @Test
@@ -259,10 +279,28 @@ class RoborazziScreenshotsTest {
             db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
         }
         setUnits(Units.MG_DL)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}, animationsEnabled = false) } } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists(); true
+            } catch (_: AssertionError) { false }
+        }
         composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
+        composeRule.onNodeWithText("↘", substring = true).assertExists()
+        composeRule.onNodeWithText("m ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}) } }
+        renderAndSavePngActivity("alarm_low_warn.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
     }
 
     @Test
@@ -274,10 +312,28 @@ class RoborazziScreenshotsTest {
             db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test"))
         }
         setUnits(Units.MG_DL)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}, animationsEnabled = false) } } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists(); true
+            } catch (_: AssertionError) { false }
+        }
         composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
+        composeRule.onNodeWithText("↗", substring = true).assertExists()
+        composeRule.onNodeWithText("m ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}) } }
+        renderAndSavePngActivity("alarm_high.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
     }
 
     @Test
@@ -288,32 +344,54 @@ class RoborazziScreenshotsTest {
             db.insert(GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "→", source = "test"))
         }
         setUnits(Units.MG_DL)
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}, animationsEnabled = false) } } }
+        val latest = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+        composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
+        composeRule.onNodeWithText("→", substring = true).assertExists()
+        composeRule.onNodeWithText("m ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}) } }
+        renderAndSavePngActivity("alarm_signal_lost.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
     }
 
     // Phone-sized portraits (approx 411x891dp) for Home, Settings, and Alarms
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_home_awake_mgdl_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val latest = GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test")
-        setUnits(Units.MG_DL)
-        setMode(false)
-        val hist = buildHistory(3, now, 142.0, "↗")
-        renderAndSavePngActivity("phone_home_awake_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
+    fun phone_home_awake_mgdl_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val latest = GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test")
+            setUnits(Units.MG_DL)
+            setMode(false)
+            val hist = buildHistory(3, now, 142.0, "↗")
+            renderAndSavePngActivity("phone_home_awake_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
+        }
     }
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_home_sleep_mgdl_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val latest = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
-        val hist = buildHistory(3, now, 120.0, "Flat")
-        setUnits(Units.MG_DL)
-        setMode(true)
-        renderAndSavePngActivity("phone_home_sleep_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } }
+    fun phone_home_sleep_mgdl_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val latest = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
+            val hist = buildHistory(3, now, 120.0, "Flat")
+            setUnits(Units.MG_DL)
+            setMode(true)
+            renderAndSavePngActivity("phone_home_sleep_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } }
+        }
     }
 
     @Test
@@ -324,56 +402,162 @@ class RoborazziScreenshotsTest {
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_alarm_urgent_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val db = AppDatabase.get(context).glucoseDao()
-        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
+    fun phone_alarm_urgent_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val db = AppDatabase.get(context).glucoseDao()
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
         setUnits(Units.MG_DL)
-        renderAndSavePngActivity("phone_alarm_urgent.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}) } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+            composeRule.onNodeWithText("URGENT ALARM").assertExists()
+            composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
+            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        renderAndSavePngActivity("phone_alarm_urgent.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        }
     }
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_alarm_low_warn_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val db = AppDatabase.get(context).glucoseDao()
-        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
+    fun phone_alarm_low_warn_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val db = AppDatabase.get(context).glucoseDao()
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
         setUnits(Units.MG_DL)
-        renderAndSavePngActivity("phone_alarm_low_warn.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}) } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+            composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
+            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        renderAndSavePngActivity("phone_alarm_low_warn.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        }
     }
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_alarm_low_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val db = AppDatabase.get(context).glucoseDao()
-        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
+    fun phone_alarm_low_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val db = AppDatabase.get(context).glucoseDao()
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
         setUnits(Units.MG_DL)
-        renderAndSavePngActivity("phone_alarm_low.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}) } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+            composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
+            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        renderAndSavePngActivity("phone_alarm_low.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        }
     }
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_alarm_high_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val db = AppDatabase.get(context).glucoseDao()
-        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 240.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
-        db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test"))
+    fun phone_alarm_high_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val db = AppDatabase.get(context).glucoseDao()
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 240.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test"))
         setUnits(Units.MG_DL)
-        renderAndSavePngActivity("phone_alarm_high.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}) } }
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+            composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
+            composeRule.onNodeWithText("↗", substring = true).assertExists()
+            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        renderAndSavePngActivity("phone_alarm_high.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        }
     }
 
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
-    fun phone_alarm_signal_lost_port() = runBlocking {
-        val now = System.currentTimeMillis()
-        val db = AppDatabase.get(context).glucoseDao()
-        db.insert(GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "→", source = "test"))
+    fun phone_alarm_signal_lost_port() {
+        runBlocking {
+            val now = System.currentTimeMillis()
+            val db = AppDatabase.get(context).glucoseDao()
+            db.insert(GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "→", source = "test"))
         setUnits(Units.MG_DL)
-        renderAndSavePngActivity("phone_alarm_signal_lost.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}) } }
+        val latest = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}, animationsEnabled = false, previewLatest = latest, previewUnits = Units.MG_DL) } } }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+            composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
+            composeRule.onNodeWithText("→", substring = true).assertExists()
+            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        renderAndSavePngActivity("phone_alarm_signal_lost.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        }
     }
 }
 

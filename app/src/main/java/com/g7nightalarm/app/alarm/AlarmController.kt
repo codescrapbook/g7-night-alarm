@@ -17,6 +17,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.net.Uri
 import androidx.core.app.NotificationCompat
+import android.provider.Settings
 import com.g7nightalarm.app.G7NightAlarmApp
 import com.g7nightalarm.app.R
 import com.g7nightalarm.app.ui.alarm.AlarmActivity
@@ -77,10 +78,15 @@ class AlarmController(private val context: Context) {
         forceAlarmVolumeMax()
         startVibration()
         startAudio()
-        // show a heads-up full-screen notification to surface the activity
+        // Prefer full-screen notification when allowed
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
-        // also start the activity proactively
+        val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
+            try { nm.canUseFullScreenIntent() } catch (_: Throwable) { false }
+        } else true
+        if (canFullScreen) {
+            nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
+        }
+        // Always proactively start the activity as a safety net (foreground service context)
         context.startActivity(
             Intent(context, AlarmActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -89,6 +95,16 @@ class AlarmController(private val context: Context) {
                 if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
             }
         )
+        // If full-screen intent is not allowed on Android 14+, surface a settings screen once
+        if (Build.VERSION.SDK_INT >= 34 && !canFullScreen) {
+            try {
+                val intent = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+                context.startActivity(intent)
+            } catch (_: Throwable) { }
+        }
     }
 
     fun stopAlarm() {

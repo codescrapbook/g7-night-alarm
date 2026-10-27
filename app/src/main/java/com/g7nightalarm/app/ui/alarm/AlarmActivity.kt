@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.ui.theme.G7Theme
@@ -41,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalContext
 import com.g7nightalarm.app.data.AppDatabase
+import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.settings.Units
 import com.g7nightalarm.app.util.UnitsUtil
@@ -77,14 +80,21 @@ class AlarmActivity : ComponentActivity() {
 }
 
 @Composable
-fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolean = true) {
+fun AlarmContent(
+    type: String?,
+    onDismiss: () -> Unit,
+    animationsEnabled: Boolean = true,
+    previewLatest: GlucoseReading? = null,
+    previewUnits: Units? = null
+) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
     val settingsRepo = remember { SettingsRepository(context) }
-    val latest by remember { dao.latestFlow() }.collectAsState(initial = null)
+    val flowLatest by remember { dao.latestFlow() }.collectAsState(initial = null)
     val s by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
-    val units = s.units
-    val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
+    val latest = previewLatest ?: flowLatest
+    val units = previewUnits ?: s.units
+    val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt().coerceAtLeast(0) } ?: 0
     fun trendArrow(): String {
         val name = latest?.slopeName ?: ""
         if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
@@ -138,8 +148,21 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(title, style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor), fontWeight = FontWeight.ExtraBold)
-        Text(subtitle, color = subtitleColor, modifier = Modifier.padding(top = 12.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor),
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            when (dismissLabel) {
+                "DISMISS" -> "Tap to dismiss"
+                else -> "Press and hold to dismiss"
+            },
+            color = subtitleColor,
+            modifier = Modifier.padding(top = 12.dp)
+        )
         // Current reading (large, high-contrast, plain font)
         Text(
             readingTitle,
