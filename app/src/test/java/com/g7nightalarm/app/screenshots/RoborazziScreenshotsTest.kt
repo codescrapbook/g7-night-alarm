@@ -61,7 +61,15 @@ class RoborazziScreenshotsTest {
         assumeTrue(com.g7nightalarm.app.BuildConfig.DEBUG)
     }
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val outDir = File("build/outputs/roborazzi/screens")
+    // Write under app/build when tests run from repo root; otherwise write under module build/
+    private val outDir: File = run {
+        val appDir = File("app")
+        if (appDir.exists() && appDir.isDirectory) {
+            File("app/build/outputs/roborazzi/screens")
+        } else {
+            File("build/outputs/roborazzi/screens")
+        }
+    }
 
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
         val points = hours * 12

@@ -36,6 +36,14 @@ jobs:
         run: chmod +x gradlew
       - name: Run unit tests and coverage
         run: ./gradlew --no-daemon --stacktrace --info test jacocoTestReport assembleDebug
+      - name: Verify JVM screenshots exist
+        run: |
+          set -e
+          COUNT=$(bash -lc 'shopt -s globstar nullglob; files=(app/build/outputs/roborazzi/screens/**/*.png); echo ${#files[@]}')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No JVM screenshots found under app/build/outputs/roborazzi/screens"
+            exit 1
+          fi
       - name: Upload JUnit reports
         if: always()
         uses: actions/upload-artifact@v4
