@@ -28,13 +28,13 @@
             android:showOnLockScreen="true"
             android:turnScreenOn="true"
             android:launchMode="singleTask"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:theme="@style/Theme.G7NightAlarm.AlarmFullScreen" />
 
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="unspecified"
             android:theme="@style/Theme.G7NightAlarm">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

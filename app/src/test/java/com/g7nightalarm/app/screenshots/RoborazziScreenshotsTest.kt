@@ -236,31 +236,144 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun alarm_urgent_screen() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
+        }
+        setUnits(Units.MG_DL)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("URGENT ALARM").assertExists()
+        composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
         renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_low_warn_screen() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
+        }
+        setUnits(Units.MG_DL)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}, animationsEnabled = false) } } }
+        composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_high_screen() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 240.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test"))
+        }
+        setUnits(Units.MG_DL)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}, animationsEnabled = false) } } }
+        composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_signal_lost_screen() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "→", source = "test"))
+        }
+        setUnits(Units.MG_DL)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}) } }
+    }
+
+    // Phone-sized portraits (approx 411x891dp) for Home, Settings, and Alarms
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_home_awake_mgdl_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 142.0, slopeMgdlPerMin = 1.2, slopeName = "↗", source = "test")
+        setUnits(Units.MG_DL)
+        setMode(false)
+        val hist = buildHistory(3, now, 142.0, "↗")
+        renderAndSavePngActivity("phone_home_awake_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_home_sleep_mgdl_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
+        val hist = buildHistory(3, now, 120.0, "Flat")
+        setUnits(Units.MG_DL)
+        setMode(true)
+        renderAndSavePngActivity("phone_home_sleep_mgdl.png") { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_settings_port() {
+        renderAndSavePngActivity("phone_settings.png") { Box(Modifier.size(411.dp, 891.dp)) { SettingsScreen(onBack = {}) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_urgent_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 65.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test"))
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivity("phone_alarm_urgent.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_low_warn_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivity("phone_alarm_low_warn.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_low_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 79.0, slopeMgdlPerMin = null, slopeName = "↘", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test"))
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivity("phone_alarm_low.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_high_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 240.0, slopeMgdlPerMin = null, slopeName = "↗", source = "test"))
+        db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test"))
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivity("phone_alarm_high.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}) } }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_signal_lost_port() = runBlocking {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        db.insert(GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = null, slopeName = "→", source = "test"))
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivity("phone_alarm_signal_lost.png") { Box(Modifier.size(411.dp, 891.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}) } }
     }
 }
 

@@ -21,8 +21,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +37,13 @@ import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.ui.theme.G7Theme
 import kotlinx.coroutines.delay
 import com.g7nightalarm.app.receiver.AlarmActionReceiver
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.platform.LocalContext
+import com.g7nightalarm.app.data.AppDatabase
+import com.g7nightalarm.app.settings.SettingsRepository
+import com.g7nightalarm.app.settings.Units
+import com.g7nightalarm.app.util.UnitsUtil
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -69,6 +78,30 @@ class AlarmActivity : ComponentActivity() {
 
 @Composable
 fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolean = true) {
+    val context = LocalContext.current
+    val dao = remember { AppDatabase.get(context).glucoseDao() }
+    val settingsRepo = remember { SettingsRepository(context) }
+    val latest by remember { dao.latestFlow() }.collectAsState(initial = null)
+    val s by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
+    val units = s.units
+    val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
+    fun trendArrow(): String {
+        val name = latest?.slopeName ?: ""
+        if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
+        val slope = latest?.slopeMgdlPerMin ?: 0.0
+        return when {
+            slope > 0.5 -> "↗"
+            slope < -0.5 -> "↘"
+            else -> "→"
+        }
+    }
+    val readingTitle = if (latest == null) {
+        "— ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"}"
+    } else {
+        "${UnitsUtil.formatValue(latest!!.mgdl, units)} ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrow()}"
+    }
+    val readingSubtitle = if (latest == null) "" else "${ageMin}m ago"
+
     val flashing = remember { Animatable(0f) }
     LaunchedEffect(animationsEnabled) {
         if (animationsEnabled) {
@@ -106,7 +139,17 @@ fun AlarmContent(type: String?, onDismiss: () -> Unit, animationsEnabled: Boolea
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(title, style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor), fontWeight = FontWeight.ExtraBold)
-        Text(subtitle, color = subtitleColor, modifier = Modifier.padding(top = 16.dp))
+        Text(subtitle, color = subtitleColor, modifier = Modifier.padding(top = 12.dp))
+        // Current reading (large, high-contrast, plain font)
+        Text(
+            readingTitle,
+            style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor),
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(top = 24.dp)
+        )
+        if (readingSubtitle.isNotBlank()) {
+            Text(readingSubtitle, color = subtitleColor, modifier = Modifier.padding(top = 8.dp))
+        }
         Box(
             modifier = Modifier
                 .padding(top = 48.dp)
