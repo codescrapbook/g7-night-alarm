@@ -69,7 +69,7 @@ fun mapSlopeValueToDirection(slopeMgdlPerMin: Double): TrendDirection {
         slopeMgdlPerMin >= 1.0 -> TrendDirection.FORTY_FIVE_UP
         slopeMgdlPerMin > -1.0 && slopeMgdlPerMin < 1.0 -> TrendDirection.FLAT
         slopeMgdlPerMin <= -1.0 && slopeMgdlPerMin > -2.0 -> TrendDirection.FORTY_FIVE_DOWN
-        slopeMgdlPerMin <= -2.0 && slopeMgdlPerMin > -3.0 -> TrendDirection.SINGLE_DOWN
+        slopeMgdlPerMin <= -2.0 && slopeMgdlPerMin >= -3.0 -> TrendDirection.SINGLE_DOWN
         slopeMgdlPerMin < -3.0 -> TrendDirection.DOUBLE_DOWN
         else -> TrendDirection.UNKNOWN
     }
