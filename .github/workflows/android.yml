@@ -222,7 +222,7 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
-          profile: Pixel 2
+          profile: Nexus 5X
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot
           script: |
