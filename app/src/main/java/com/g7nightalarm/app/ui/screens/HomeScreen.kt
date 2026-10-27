@@ -29,8 +29,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.mode.AppMode
 import com.g7nightalarm.app.mode.ModeRepository
@@ -148,8 +151,25 @@ fun HomeScreen(
         if (isNarrow) {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column {
-                    Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
-                    Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
+                    Text(
+                        title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.semantics {
+                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
+                                when (trendArrowFor(latest)) {
+                                    "↗" -> "rising"
+                                    "↘" -> "falling"
+                                    else -> "steady"
+                                }
+                        }
+                    )
+                    Text(
+                        "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
+                        color = Color(0xFFB0B0B0),
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp)
+                    )
                 }
                 Button(
                     onClick = onOpenSettings,
@@ -167,8 +187,25 @@ fun HomeScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     // High-contrast, large digits readable at distance
-                    Text(title, color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
-                    Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color(0xFFB0B0B0))
+                    Text(
+                        title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.semantics {
+                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
+                                when (trendArrowFor(latest)) {
+                                    "↗" -> "rising"
+                                    "↘" -> "falling"
+                                    else -> "steady"
+                                }
+                        }
+                    )
+                    Text(
+                        "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
+                        color = Color(0xFFB0B0B0),
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp)
+                    )
                 }
                 Button(
                     onClick = onOpenSettings,

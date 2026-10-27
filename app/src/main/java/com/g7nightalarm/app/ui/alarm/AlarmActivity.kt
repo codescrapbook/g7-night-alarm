@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.ui.theme.G7Theme
 import kotlinx.coroutines.delay
@@ -55,6 +56,13 @@ import android.util.TypedValue
 import androidx.compose.ui.graphics.toArgb
 import android.view.Gravity
 import android.graphics.Typeface
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.g7nightalarm.app.ui.a11y.FontSizeSpKey
+import com.g7nightalarm.app.ui.a11y.fontSizeSp
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -120,7 +128,7 @@ fun AlarmContent(
     } else {
         "${UnitsUtil.formatValue(latest!!.mgdl, units)} ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrow()}"
     }
-    val readingSubtitle = if (latest == null) "" else "${ageMin}m ago"
+    val readingSubtitle = if (latest == null) "" else "Last reading ${ageMin} min ago"
 
     val flashing = remember { Animatable(0f) }
     LaunchedEffect(animationsEnabled) {
@@ -132,12 +140,13 @@ fun AlarmContent(
         }
     }
     val (cA, cB, titleColor, subtitleColor) = when (type) {
-        AlarmActionReceiver.TYPE_URGENT -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color(0xFFE0E0E0))
-        AlarmActionReceiver.TYPE_LOW -> Quad(Color(0xFFAA2E00), Color(0xFFD84315), Color.White, Color(0xFFE0E0E0))
-        AlarmActionReceiver.TYPE_HIGH -> Quad(Color(0xFFFFA000), Color(0xFFFF8F00), Color.Black, Color(0xFF1A1A1A))
-        AlarmActionReceiver.TYPE_SIGNAL -> Quad(Color(0xFF37474F), Color(0xFF455A64), Color.White, Color(0xFFE0E0E0))
-        AlarmActionReceiver.TYPE_LOW_WARN -> Quad(Color(0xFF0D47A1), Color(0xFF1976D2), Color.White, Color(0xFFE0E0E0))
-        else -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color(0xFFE0E0E0))
+        // Use AAA-contrast text colors on each background
+        AlarmActionReceiver.TYPE_URGENT -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color.White)
+        AlarmActionReceiver.TYPE_LOW -> Quad(Color(0xFFAA2E00), Color(0xFFD84315), Color.White, Color.White)
+        AlarmActionReceiver.TYPE_HIGH -> Quad(Color(0xFFFFA000), Color(0xFFFF8F00), Color.Black, Color.Black)
+        AlarmActionReceiver.TYPE_SIGNAL -> Quad(Color(0xFF37474F), Color(0xFF455A64), Color.White, Color.White)
+        AlarmActionReceiver.TYPE_LOW_WARN -> Quad(Color(0xFF0D47A1), Color(0xFF1976D2), Color.White, Color.White)
+        else -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color.White)
     }
     val bg = if (animationsEnabled) androidx.compose.ui.graphics.lerp(cA, cB, flashing.value) else cB
     val holding = remember { mutableStateOf(false) }
@@ -171,32 +180,77 @@ fun AlarmContent(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+        // Top content is scrollable to avoid clipping at large font scales
+        val scroll = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scroll),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Current reading (large, high-contrast, plain font)
+            val readingTextStyle = if (cfg.screenWidthDp < 500) {
+                // Use a slightly smaller style on narrow widths to keep value + arrow on one line
+                MaterialTheme.typography.displayMedium
+            } else {
+                MaterialTheme.typography.displayLarge
+            }
+            Text(
+                readingTitle,
+                style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .semantics {
+                        contentDescription =
+                            if (latest == null) "No recent reading"
+                            else "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
+                                (when {
+                                    (latest?.slopeName ?: "").contains("↗") -> "rising"
+                                    (latest?.slopeName ?: "").contains("↘") -> "falling"
+                                    else -> "steady"
+                                })
+                        fontSizeSp = readingTextStyle.fontSize.value
+                    }
+                    .testTag("alarmReading"),
+                maxLines = 1,
+                softWrap = false
+            )
+            if (readingSubtitle.isNotBlank()) {
+                val ageStyle = MaterialTheme.typography.headlineSmall.copy(
+                    fontSize = 24.sp,
+                    color = subtitleColor
+                )
+                Text(
+                    readingSubtitle,
+                    style = ageStyle,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .semantics { fontSizeSp = ageStyle.fontSize.value }
+                        .testTag("alarmAge")
+                )
+            }
+        }
+        // Large, bold instruction placed directly above the action control
+        val instructionStyle = MaterialTheme.typography.headlineMedium.copy(
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = subtitleColor
+        )
         Text(
-            when (dismissLabel) {
+            text = when (dismissLabel) {
                 "DISMISS" -> "Tap to dismiss"
                 else -> "Press and hold to dismiss"
             },
-            color = subtitleColor,
-            modifier = Modifier.padding(top = 12.dp)
+            style = instructionStyle,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .semantics { fontSizeSp = instructionStyle.fontSize.value }
+                .testTag("alarmInstruction")
         )
-        // Current reading (large, high-contrast, plain font)
-        val readingTextStyle = if (cfg.screenWidthDp < 500) {
-            // Use a slightly smaller style on narrow widths to keep value + arrow on one line
-            MaterialTheme.typography.displayMedium
-        } else {
-            MaterialTheme.typography.displayLarge
-        }
-        Text(
-            readingTitle,
-            style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(top = 24.dp),
-            maxLines = 1,
-            softWrap = false
-        )
-        if (readingSubtitle.isNotBlank()) {
-            Text(readingSubtitle, color = subtitleColor, modifier = Modifier.padding(top = 8.dp))
-        }
         Box(
             modifier = Modifier
                 .padding(top = 48.dp)
@@ -221,7 +275,7 @@ fun AlarmContent(
         ) {
             Text(
                 dismissLabel,
-                style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default),
+                style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 28.sp),
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.Black
             )

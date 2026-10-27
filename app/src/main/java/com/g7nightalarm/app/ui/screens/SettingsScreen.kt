@@ -146,7 +146,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             focusedLabelColor = MaterialTheme.colorScheme.primary,
             unfocusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f)
         )
-        val tfTextStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onBackground)
+        val tfTextStyle = MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 18.sp
+        )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(urgentLow, onValueChange = { urgentLow = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Urgent low (mg/dL)") }, modifier = Modifier.weight(1f), colors = tfColors, textStyle = tfTextStyle, enabled = true)
             OutlinedTextField(low, onValueChange = { low = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Low (mg/dL)") }, modifier = Modifier.weight(1f), colors = tfColors, textStyle = tfTextStyle, enabled = true)
@@ -169,6 +172,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Text(
                     "Voice control (\"good night/morning\")",
                     color = labelColor,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     modifier = Modifier.weight(1f),
                     maxLines = if (isNarrow) 2 else 1,
                     overflow = TextOverflow.Ellipsis
@@ -185,6 +189,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 Text(
                     "Safety-net urgent/no-data 30m = full alarm",
                     color = labelColor,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("safetyLabel"),
@@ -207,9 +212,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (isNarrow) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("Low song", color = labelColor)
-                    val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
-                    Text(desc, color = secondaryColor)
+                Text("Low song", color = labelColor, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+                val desc = if (musicLowUri.isNotBlank()) "Custom audio selected" else "Default melody: Swing Low, Sweet Chariot"
+                Text(desc, color = secondaryColor, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { pickAudioLowLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioLowLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }
@@ -251,9 +256,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (isNarrow) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("High song", color = labelColor)
-                    val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
-                    Text(desc, color = secondaryColor)
+                Text("High song", color = labelColor, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+                val desc = if (musicHighUri.isNotBlank()) "Custom audio selected" else "Default loop: Going Up"
+                Text(desc, color = secondaryColor, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { pickAudioHighLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioHighLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }
@@ -295,9 +300,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (isNarrow) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("Signal lost song", color = labelColor)
-                    val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
-                    Text(desc, color = secondaryColor)
+                Text("Signal lost song", color = labelColor, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+                val desc = if (musicSignalUri.isNotBlank()) "Custom audio selected" else "Default loop: Lost Connection"
+                Text(desc, color = secondaryColor, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { pickAudioSignalLauncher?.launch(arrayOf("audio/*")) }, enabled = pickAudioSignalLauncher != null, modifier = Modifier.weight(1f)) { Text("Pick") }

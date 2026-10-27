@@ -21,6 +21,9 @@ import org.robolectric.Robolectric
 import org.robolectric.shadows.ShadowLooper
 import androidx.core.view.drawToBitmap
 import androidx.test.core.app.ApplicationProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsKeys
@@ -98,6 +101,26 @@ class RoborazziScreenshotsTest {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
         }
     }
+    private fun renderAndSavePngActivityFontScale(name: String, fontScale: Float, content: @Composable () -> Unit) {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        activity.setContent {
+            G7Theme {
+                CompositionLocalProvider(
+                    LocalDensity provides Density(density = LocalDensity.current.density, fontScale = fontScale)
+                ) { content() }
+            }
+        }
+        repeat(20) {
+            ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+            try { Thread.sleep(75) } catch (_: Throwable) {}
+        }
+        outDir.mkdirs()
+        val file = File(outDir, name)
+        val bitmap = activity.window.decorView.drawToBitmap()
+        FileOutputStream(file).use { fos ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        }
+    }
 
     private fun seedReadings(hours: Int = 24) = runBlocking {
         val db = AppDatabase.get(context).glucoseDao()
@@ -118,6 +141,144 @@ class RoborazziScreenshotsTest {
         }
     }
 
+    // Font scale 2.0 screenshots (tablet)
+    @Test
+    fun fs2_tablet_home_settings_and_alarms() = runBlocking {
+        val now = System.currentTimeMillis()
+        val latest58 = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test")
+        val latest76 = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        val latest260 = GlucoseReading(timestamp = now - 60_000L, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test")
+        val latest120 = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
+        setUnits(Units.MG_DL)
+        // Home and Settings
+        renderAndSavePngActivityFontScale("fs2_home_awake_mgdl.png", 2f) { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}) } }
+        renderAndSavePngActivityFontScale("fs2_settings.png", 2f) { Box(Modifier.size(1280.dp, 800.dp)) { SettingsScreen(onBack = {}) } }
+        // Alarms
+        renderAndSavePngActivityFontScale("fs2_alarm_urgent.png", 2f) {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest58,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_alarm_low_warn.png", 2f) {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest76,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_alarm_low.png", 2f) {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest76,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_alarm_high.png", 2f) {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest260,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_alarm_signal_lost.png", 2f) {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest120,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    // Font scale 2.0 screenshots (phone)
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun fs2_phone_home_settings_and_alarms() = runBlocking {
+        val now = System.currentTimeMillis()
+        val latest58 = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -2.0, slopeName = "↘", source = "test")
+        val latest76 = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        val latest260 = GlucoseReading(timestamp = now - 60_000L, mgdl = 260.0, slopeMgdlPerMin = 1.8, slopeName = "↗", source = "test")
+        val latest120 = GlucoseReading(timestamp = now - 35 * 60_000L, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "→", source = "test")
+        setUnits(Units.MG_DL)
+        renderAndSavePngActivityFontScale("fs2_phone_home_sleep_mgdl.png", 2f) { Box(Modifier.size(411.dp, 891.dp)) { HomeScreen(onOpenSettings = {}, previewIsSleep = true) } }
+        renderAndSavePngActivityFontScale("fs2_phone_settings.png", 2f) { Box(Modifier.size(411.dp, 891.dp)) { SettingsScreen(onBack = {}) } }
+        renderAndSavePngActivityFontScale("fs2_phone_alarm_urgent.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest58,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_phone_alarm_low_warn.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest76,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_phone_alarm_low.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest76,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_phone_alarm_high.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest260,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+        renderAndSavePngActivityFontScale("fs2_phone_alarm_signal_lost.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest120,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
     private fun setUnits(units: Units) = runBlocking {
         val repo = SettingsRepository(context)
         repo.update { p -> p[SettingsKeys.units] = units.name }
@@ -257,7 +418,7 @@ class RoborazziScreenshotsTest {
         composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
-        composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        composeRule.onNodeWithText("min ago", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
         // Render via activity using previewLatest to ensure deterministic text
         renderAndSavePngActivity("alarm_urgent.png") {
@@ -291,7 +452,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
-        composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        composeRule.onNodeWithText("min ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_low_warn.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -324,7 +485,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↗", substring = true).assertExists()
-        composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        composeRule.onNodeWithText("min ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_high.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -355,7 +516,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("→", substring = true).assertExists()
-        composeRule.onNodeWithText("m ago", substring = true).assertExists()
+        composeRule.onNodeWithText("min ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_signal_lost.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -443,7 +604,7 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("URGENT ALARM").assertExists()
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+            composeRule.onNodeWithText("min ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_urgent.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -475,7 +636,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+            composeRule.onNodeWithText("min ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low_warn.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -507,7 +668,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
-            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+            composeRule.onNodeWithText("min ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -539,7 +700,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↗", substring = true).assertExists()
-            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+            composeRule.onNodeWithText("min ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_high.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -570,7 +731,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("→", substring = true).assertExists()
-            composeRule.onNodeWithText("m ago", substring = true).assertExists()
+            composeRule.onNodeWithText("min ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_signal_lost.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
