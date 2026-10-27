@@ -53,15 +53,17 @@ class AlarmController(private val context: Context) {
     // Monotonic clock for timing decisions
     private fun nowMs(): Long = ClockHolder.nowMs()
 
-    fun showFullScreenAlarmNotification(): Notification {
-        val fullScreenIntent = Intent(context, AlarmActivity::class.java)
+    fun showFullScreenAlarmNotification(type: String? = null): Notification {
+        val fullScreenIntent = Intent(context, AlarmActivity::class.java).apply {
+            if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
+        }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context, 0, fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(context, G7NightAlarmApp.Channels.ALARM_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("URGENT Glucose Alarm")
+            .setContentTitle("Glucose Alarm")
             .setContentText("Tap to open and dismiss")
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -70,20 +72,21 @@ class AlarmController(private val context: Context) {
             .build()
     }
 
-    fun startAlarm() {
+    fun startAlarm(type: String? = null) {
         acquireWakeLock()
         forceAlarmVolumeMax()
         startVibration()
         startAudio()
         // show a heads-up full-screen notification to surface the activity
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification())
+        nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
         // also start the activity proactively
         context.startActivity(
             Intent(context, AlarmActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
             }
         )
     }

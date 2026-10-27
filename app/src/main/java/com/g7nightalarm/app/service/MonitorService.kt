@@ -203,7 +203,14 @@ class MonitorService : Service() {
                 if (full) {
                     alarmActive = true
                     voice?.pause()
-                    alarmController.startAlarm()
+                    val uiType = when (event) {
+                        is AlarmEvent.UrgentLow -> com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW
+                        is AlarmEvent.Low -> com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW
+                        is AlarmEvent.High -> com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH
+                        is AlarmEvent.NoData -> com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL
+                        else -> com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN
+                    }
+                    alarmController.startAlarm(type = uiType)
                 }
                 return@launch
             }

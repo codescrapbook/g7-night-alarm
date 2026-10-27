@@ -222,30 +222,30 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun alarm_urgent_screen() {
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("HOLD").assertExists()
-        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.Urgent() } }
+        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_low_warn_screen() {
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.LowWarn() } }
+        renderAndSavePngActivity("alarm_low_warn.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW_WARN, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_high_screen() {
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.High() } }
+        renderAndSavePngActivity("alarm_high.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH, onDismiss = {}) } }
     }
 
     @Test
     fun alarm_signal_lost_screen() {
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}, animationsEnabled = false) } } }
         composeRule.onNodeWithText("DISMISS").assertExists()
-        renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { AlarmScreens.SignalLost() } }
+        renderAndSavePngActivity("alarm_signal_lost.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_SIGNAL, onDismiss = {}) } }
     }
 }
 
