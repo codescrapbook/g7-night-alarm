@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.settings.SettingsKeys
 import com.g7nightalarm.app.settings.SettingsRepository
@@ -42,6 +43,10 @@ import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -151,13 +156,41 @@ fun SettingsScreen(onBack: () -> Unit) {
             OutlinedTextField(rapidFall, onValueChange = { rapidFall = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Rapid fall (mg/dL/min)") }, modifier = Modifier.weight(1f), colors = tfColors, textStyle = tfTextStyle, enabled = true)
             OutlinedTextField(noData, onValueChange = { noData = it.filter { ch -> ch.isDigit() } }, label = { Text("No data minutes") }, modifier = Modifier.weight(1f), colors = tfColors, textStyle = tfTextStyle, enabled = true)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Voice control (\"good night/morning\")", color = labelColor)
+        val cfg = LocalConfiguration.current
+        val isNarrow = cfg.screenWidthDp < 500
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("toggleRowVoice"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Voice control (\"good night/morning\")",
+                    color = labelColor,
+                    modifier = Modifier.weight(1f),
+                    maxLines = if (isNarrow) 2 else 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Switch(checked = voiceEnabled, onCheckedChange = { voiceEnabled = it })
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Safety-net urgent/no-data 30m = full alarm", color = labelColor)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("toggleRowSafety"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Safety-net urgent/no-data 30m = full alarm",
+                    color = labelColor,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("safetyLabel"),
+                    maxLines = if (isNarrow) 3 else 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Switch(checked = safetyNetFull, onCheckedChange = { safetyNetFull = it })
             }
         }

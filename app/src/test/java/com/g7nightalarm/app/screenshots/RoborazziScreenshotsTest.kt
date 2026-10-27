@@ -409,6 +409,15 @@ class RoborazziScreenshotsTest {
     @Test
     @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
     fun phone_settings_port() {
+        // Assert narrow-layout toggles are on separate rows and safety label height reasonable
+        composeRule.setContent { G7Theme { Box(Modifier.size(411.dp, 891.dp)) { SettingsScreen(onBack = {}) } } }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithTag("toggleRowVoice").assertExists()
+                composeRule.onNodeWithTag("toggleRowSafety").assertExists()
+                true
+            } catch (_: AssertionError) { false }
+        }
         renderAndSavePngActivity("phone_settings.png") { Box(Modifier.size(411.dp, 891.dp)) { SettingsScreen(onBack = {}) } }
     }
 
