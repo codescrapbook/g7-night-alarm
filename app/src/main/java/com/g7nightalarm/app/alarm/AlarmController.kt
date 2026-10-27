@@ -16,6 +16,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import android.provider.Settings
 import com.g7nightalarm.app.G7NightAlarmApp
@@ -87,14 +89,22 @@ class AlarmController(private val context: Context) {
             nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
         }
         // Always proactively start the activity as a safety net (foreground service context)
-        context.startActivity(
-            Intent(context, AlarmActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
+        val startIntent = Intent(context, AlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
+        }
+        // Post to main looper to reduce background-start races on newer Android versions
+        try {
+            Handler(Looper.getMainLooper()).post {
+                try { context.startActivity(startIntent) } catch (_: Throwable) {}
             }
-        )
+        } catch (_: Throwable) {
+            try { context.startActivity(startIntent) } catch (_: Throwable) {}
+        }
         // If full-screen intent is not allowed on Android 14+, surface a settings screen once
         if (Build.VERSION.SDK_INT >= 34 && !canFullScreen) {
             try {

@@ -3,6 +3,7 @@ package com.g7nightalarm.app.ui.alarm
 import android.os.Bundle
 import android.os.Build
 import android.app.KeyguardManager
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -60,6 +61,8 @@ class AlarmActivity : ComponentActivity() {
             val km = getSystemService(KeyguardManager::class.java)
             km?.requestDismissKeyguard(this, null)
         }
+        // Keep screen on while alarm is showing
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         alarmController = AlarmController(this)
         val type = intent?.getStringExtra(AlarmActionReceiver.EXTRA_TYPE)
         setContent {
