@@ -282,10 +282,11 @@ class RoborazziScreenshotsTest {
             }
             return (sum / cnt).toInt()
         }
-        // Sample: NE should be brighter than SW
-        val ne = localAvg(upBmp, 0.75, 0.25)
-        val sw = localAvg(upBmp, 0.25, 0.75)
-        org.junit.Assert.assertTrue(ne > sw)
+        // Upward tendency: top half brighter than bottom half
+        val upQ2 = quadrantStrength(upBmp)
+        val upTopSum2 = upQ2.getValue("tr") + upQ2.getValue("tl")
+        val upBottomSum2 = upQ2.getValue("br") + upQ2.getValue("bl")
+        org.junit.Assert.assertTrue(upTopSum2 > upBottomSum2)
 
         // 45° down (↘): mass on bottom-right
         renderAndSavePngActivity("tmp_trend_down.png") {
@@ -298,10 +299,11 @@ class RoborazziScreenshotsTest {
             }
         }
         val downBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_down.png").absolutePath)
-        // SE should be brighter than NW
-        val se = localAvg(downBmp, 0.75, 0.75)
-        val nw = localAvg(downBmp, 0.25, 0.25)
-        org.junit.Assert.assertTrue(se > nw)
+        // Downward tendency: bottom half brighter than top half
+        val downQ2 = quadrantStrength(downBmp)
+        val downTopSum2 = downQ2.getValue("tr") + downQ2.getValue("tl")
+        val downBottomSum2 = downQ2.getValue("br") + downQ2.getValue("bl")
+        org.junit.Assert.assertTrue(downBottomSum2 > downTopSum2)
     }
 
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
