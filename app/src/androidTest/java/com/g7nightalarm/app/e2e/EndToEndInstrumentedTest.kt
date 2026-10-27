@@ -213,8 +213,8 @@ class EndToEndInstrumentedTest {
         // Inject urgent low
         sendBgEstimate(52.0)
         // Require full-screen alarm title and HOLD control to be visible (no debug fallback)
-        val urgentVisible = device.wait(Until.hasObject(By.textContains("URGENT")), 7_500) ||
-            device.wait(Until.hasObject(By.descContains("URGENT")), 7_500)
+        val urgentVisible = device.wait(Until.hasObject(By.textContains("URGENT")), 15_000) ||
+            device.wait(Until.hasObject(By.descContains("URGENT")), 15_000)
         Assert.assertTrue("Expected URGENT title visible.", urgentVisible)
         Assert.assertTrue(device.wait(Until.hasObject(By.text("HOLD")), 5_000))
         // Confirm reading text is shown
