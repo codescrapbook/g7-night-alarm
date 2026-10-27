@@ -41,6 +41,7 @@ import org.robolectric.annotation.GraphicsMode.Mode.NATIVE
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.sin
+import com.g7nightalarm.app.ui.screens.computeChartSeries
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], qualifiers = "w1280dp-h800dp-land-mdpi")
@@ -65,7 +66,7 @@ class RoborazziScreenshotsTest {
             val base = 120.0 + 20.0 * kotlin.math.sin(i / 8.0)
             list.add(GlucoseReading(timestamp = t, mgdl = base, slopeMgdlPerMin = null, slopeName = "Flat", source = "test"))
         }
-        list.add(GlucoseReading(timestamp = endNow - 5 * 60_000L, mgdl = (endMgdl - 7.0), slopeMgdlPerMin = null, slopeName = slopeName, source = "test"))
+        list.add(GlucoseReading(timestamp = endNow - 5 * 60_000L, mgdl = (endMgdl - 20.0), slopeMgdlPerMin = null, slopeName = slopeName, source = "test"))
         list.add(GlucoseReading(timestamp = endNow, mgdl = endMgdl, slopeMgdlPerMin = null, slopeName = slopeName, source = "test"))
         return list
     }
@@ -137,6 +138,10 @@ class RoborazziScreenshotsTest {
         setUnits(Units.MG_DL)
         setMode(false)
         val hist = buildHistory(3, now, 142.0, "↗")
+        // Assert seeded history last equals latest for the chart
+        val series = computeChartSeries(hist, latest)
+        org.junit.Assert.assertEquals(142.0, series.last().mgdl, 0.0)
+        org.junit.Assert.assertEquals(now, series.last().timestamp)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } } }
         composeRule.waitUntil(5_000) {
             try {
@@ -154,6 +159,9 @@ class RoborazziScreenshotsTest {
         val now = System.currentTimeMillis()
         val latest = GlucoseReading(timestamp = now, mgdl = 120.0, slopeMgdlPerMin = 0.0, slopeName = "Flat", source = "test")
         val hist = buildHistory(3, now, 120.0, "Flat")
+        val series = computeChartSeries(hist, latest)
+        org.junit.Assert.assertEquals(120.0, series.last().mgdl, 0.0)
+        org.junit.Assert.assertEquals(now, series.last().timestamp)
         setUnits(Units.MG_DL)
         setMode(true)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist, previewIsSleep = true) } } }
@@ -176,6 +184,9 @@ class RoborazziScreenshotsTest {
         setUnits(Units.MMOL_L)
         setMode(false)
         val hist = buildHistory(3, now, 76.0, "↘")
+        val series = computeChartSeries(hist, latest)
+        org.junit.Assert.assertEquals(76.0, series.last().mgdl, 0.0)
+        org.junit.Assert.assertEquals(now, series.last().timestamp)
         renderAndSavePngActivity("home_awake_mmol_port.png") { Box(Modifier.size(800.dp, 1280.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } }
     }
 
@@ -208,6 +219,9 @@ class RoborazziScreenshotsTest {
         setUnits(Units.MG_DL)
         setMode(false)
         val hist = buildHistory(3, now, 76.0, "↘")
+        val series = computeChartSeries(hist, latest)
+        org.junit.Assert.assertEquals(76.0, series.last().mgdl, 0.0)
+        org.junit.Assert.assertEquals(now, series.last().timestamp)
         composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { HomeScreen(onOpenSettings = {}, previewLatest = latest, previewHistory = hist) } } }
         composeRule.waitUntil(5_000) {
             try {
@@ -222,9 +236,10 @@ class RoborazziScreenshotsTest {
 
     @Test
     fun alarm_urgent_screen() {
-        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}, animationsEnabled = false) } } }
+        composeRule.setContent { G7Theme { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}, animationsEnabled = false) } } }
+        composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
-        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW, onDismiss = {}) } }
+        renderAndSavePngActivity("alarm_urgent.png") { Box(Modifier.size(1280.dp, 800.dp)) { com.g7nightalarm.app.ui.alarm.AlarmContent(type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT, onDismiss = {}) } }
     }
 
     @Test
