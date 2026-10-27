@@ -35,7 +35,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.ui.theme.G7Theme
@@ -45,8 +44,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsRepository
@@ -168,11 +165,6 @@ fun AlarmContent(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = title }
-                ,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip
         )
         Text(
             when (dismissLabel) {
@@ -197,7 +189,6 @@ fun AlarmContent(
                 .padding(top = 48.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFE5E5E5))
-                .semantics { contentDescription = dismissLabel }
                 .padding(48.dp)
                 .pointerInput(Unit) {
                     detectTapGestures(

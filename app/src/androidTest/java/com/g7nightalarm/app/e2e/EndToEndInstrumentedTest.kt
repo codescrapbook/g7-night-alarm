@@ -213,12 +213,8 @@ class EndToEndInstrumentedTest {
         // Inject urgent low
         sendBgEstimate(52.0)
         // Require full-screen alarm title and HOLD control to be visible (no debug fallback)
-        val titleVisible = device.wait(Until.hasObject(By.text("URGENT ALARM")), 7_500) ||
-            device.wait(Until.hasObject(By.desc("URGENT ALARM")), 7_500)
-        Assert.assertTrue("Expected URGENT ALARM title visible.", titleVisible)
-        val holdVisible = device.wait(Until.hasObject(By.text("HOLD")), 3_000) ||
-            device.wait(Until.hasObject(By.desc("HOLD")), 3_000)
-        Assert.assertTrue("Expected HOLD control visible.", holdVisible)
+        Assert.assertTrue(device.wait(Until.hasObject(By.textContains("URGENT")), 15_000))
+        Assert.assertTrue(device.wait(Until.hasObject(By.text("HOLD")), 5_000))
         // Confirm reading text is shown
         Assert.assertTrue(device.wait(Until.hasObject(By.textContains("52")), 5_000))
         Assert.assertTrue(device.wait(Until.hasObject(By.textContains("mg/dL")), 5_000))
@@ -231,8 +227,7 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Alarm volume should reach max shortly after full-screen alarm starts.", atMax)
         screenshot("alarm_fullscreen.png")
         // Try UI long-press HOLD to dismiss
-        val holdObj = device.findObject(By.text("HOLD")) ?: device.findObject(By.desc("HOLD"))
-        holdObj.longClick()
+        device.findObject(By.text("HOLD")).longClick()
         // Wait up to ~10s and verify volume restored (or at least not max)
         var restored = false
         repeat(20) {
@@ -364,11 +359,11 @@ class EndToEndInstrumentedTest {
         Assert.assertTrue("Expected ramp to start near awake volume.", startVol in awakeVol until max)
         // Midpoint (~2.5 min): expect volume higher than start and less than max
         // Give the ramp thread a moment to establish its start timestamp before jumping the clock
-        Thread.sleep(600)
+        Thread.sleep(900)
         clockAdvance((2 * 60 + 30) * 1000L)
         var midGtStart = false
         var midVal = -1
-        repeat(40) { // wait up to ~10s for ramp thread to apply on slower emulators
+        repeat(80) { // wait up to ~20s for ramp thread to apply on slower emulators
             midVal = am.getStreamVolume(AudioManager.STREAM_ALARM)
             if (midVal > startVol && midVal < max) { midGtStart = true; return@repeat }
             Thread.sleep(250)

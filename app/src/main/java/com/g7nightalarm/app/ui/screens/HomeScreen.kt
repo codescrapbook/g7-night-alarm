@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -39,6 +40,10 @@ import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import com.g7nightalarm.app.settings.Units
 import com.g7nightalarm.app.util.UnitsUtil
+import android.os.Build
+import android.app.NotificationManager
+import android.content.Intent
+import android.provider.Settings
 
 @Composable
 fun HomeScreen(
@@ -90,6 +95,11 @@ fun HomeScreen(
             .fillMaxSize()
             .background(Color(0xFF101010))
     ) {
+        // On Android 14+, warn the user if full-screen intent is not allowed for this app
+        val nm = remember { androidx.core.content.ContextCompat.getSystemService(context, NotificationManager::class.java) }
+        val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
+            try { nm?.canUseFullScreenIntent() == true } catch (_: Throwable) { false }
+        } else true
         // Subtle stitched border decoration (does not affect layout or readability)
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
@@ -116,6 +126,35 @@ fun HomeScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+        if (!canFullScreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFF59D), RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Full-screen alarms are disabled. Enable to allow urgent alarms to appear over lock screen.",
+                    color = Color.Black,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                Button(onClick = {
+                    try {
+                        val intent = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Throwable) { }
+                }) {
+                    Text("Enable")
+                }
+            }
+        }
         Text(
             "Undead In Bed",
             color = MaterialTheme.colorScheme.secondary,

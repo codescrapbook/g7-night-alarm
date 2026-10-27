@@ -97,23 +97,11 @@ class AlarmController(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
         }
-        // Post to main looper to reduce background-start races on newer Android versions
+        // Start synchronously from the foreground service context; log if it fails
         try {
-            Handler(Looper.getMainLooper()).post {
-                try { context.startActivity(startIntent) } catch (_: Throwable) {}
-            }
-        } catch (_: Throwable) {
-            try { context.startActivity(startIntent) } catch (_: Throwable) {}
-        }
-        // If full-screen intent is not allowed on Android 14+, surface a settings screen once
-        if (Build.VERSION.SDK_INT >= 34 && !canFullScreen) {
-            try {
-                val intent = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                }
-                context.startActivity(intent)
-            } catch (_: Throwable) { }
+            context.startActivity(startIntent)
+        } catch (t: Throwable) {
+            try { android.util.Log.e("AlarmController", "Failed to start AlarmActivity", t) } catch (_: Throwable) {}
         }
     }
 
