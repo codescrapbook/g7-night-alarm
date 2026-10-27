@@ -68,6 +68,14 @@ import com.g7nightalarm.app.ui.a11y.fontSizeSp
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.platform.LocalDensity
+import com.g7nightalarm.app.ui.trend.Trend
+import com.g7nightalarm.app.ui.trend.TrendArrowIcon
+import com.g7nightalarm.app.ui.trend.TrendDirection
+import com.g7nightalarm.app.ui.trend.contentDescription
+import com.g7nightalarm.app.ui.trend.deriveTrend
+import com.g7nightalarm.app.ui.trend.label
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -119,21 +127,12 @@ fun AlarmContent(
     val units = previewUnits ?: s.units
     val ageMs = latest?.let { (System.currentTimeMillis() - it.timestamp).coerceAtLeast(0) } ?: 0L
     val ageMin = (ageMs / 60000L).toInt()
-    fun trendArrow(): String {
-        val name = latest?.slopeName ?: ""
-        if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
-        val slope = latest?.slopeMgdlPerMin ?: 0.0
-        return when {
-            slope > 0.5 -> "↗"
-            slope < -0.5 -> "↘"
-            else -> "→"
-        }
-    }
     val readingTitle = if (latest == null) {
         "— ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"}"
     } else {
-        "${UnitsUtil.formatValue(latest!!.mgdl, units)} ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrow()}"
+        "${UnitsUtil.formatValue(latest!!.mgdl, units)} ${if (units == Units.MG_DL) "mg/dL" else "mmol/L"}"
     }
+    val trend: Trend = deriveTrend(latest, previous = null)
     val agePhrase: String = if (latest == null) "" else when {
         ageMs < 60_000L -> "just now"
         ageMin in 1..59 -> {
@@ -219,20 +218,57 @@ fun AlarmContent(
                 modifier = Modifier
                     .padding(top = 24.dp)
                     .semantics {
-                        contentDescription =
-                            if (latest == null) "No recent reading"
-                            else "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
-                                (when {
-                                    (latest?.slopeName ?: "").contains("↗") -> "rising"
-                                    (latest?.slopeName ?: "").contains("↘") -> "falling"
-                                    else -> "steady"
-                                })
+                        contentDescription = if (latest == null) {
+                            "No recent reading"
+                        } else {
+                            "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
+                        }
                         fontSizeSp = readingTextStyle.fontSize.value
                     }
                     .testTag("alarmReading"),
                 maxLines = 1,
                 softWrap = false
             )
+            // Prominent trend arrow and label
+            val arrowSize = with(LocalDensity.current) { readingTextStyle.fontSize.toDp() }
+            if (trend.direction != TrendDirection.UNKNOWN) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .semantics { contentDescription = trend.contentDescription() }
+                ) {
+                    TrendArrowIcon(
+                        direction = trend.direction,
+                        color = titleColor,
+                        size = arrowSize,
+                        modifier = Modifier.sizeIn(minWidth = arrowSize, minHeight = arrowSize)
+                    )
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = trend.label(),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = titleColor,
+                            fontFamily = FontFamily.Default
+                        )
+                    )
+                }
+            } else {
+                Text(
+                    text = "Trend unknown",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = titleColor,
+                        fontFamily = FontFamily.Default
+                    ),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .semantics { contentDescription = "Trend unknown" }
+                )
+            }
             if (agePhrase.isNotBlank()) {
                 // Build an annotated single-line age string with bold number at least 40sp
                 val density = androidx.compose.ui.platform.LocalDensity.current

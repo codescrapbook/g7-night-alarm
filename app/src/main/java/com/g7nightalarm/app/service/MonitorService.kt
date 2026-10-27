@@ -48,6 +48,8 @@ import java.text.DecimalFormat
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
 import com.g7nightalarm.app.net.Parsing
+import com.g7nightalarm.app.ui.trend.deriveTrend
+import com.g7nightalarm.app.ui.trend.symbol
 
 class MonitorService : Service() {
 
@@ -163,7 +165,7 @@ class MonitorService : Service() {
         val sUnits = kotlinx.coroutines.runBlocking { settings.flow.first().units }
         val content = latest?.let {
             val ageMin = ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt()
-            val slope = it.slopeName ?: ""
+            val slope = deriveTrend(it, previous = null).symbol()
             val valueStr = if (sUnits == com.g7nightalarm.app.settings.Units.MG_DL) format(it.mgdl)
             else mmolFormat.format(it.mgdl / 18.0)
             val unitStr = if (sUnits == com.g7nightalarm.app.settings.Units.MG_DL) "mg/dL" else "mmol/L"

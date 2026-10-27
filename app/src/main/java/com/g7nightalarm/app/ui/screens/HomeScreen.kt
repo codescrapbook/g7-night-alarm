@@ -34,6 +34,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.LocalDensity
+import com.g7nightalarm.app.ui.trend.TrendArrowIcon
+import com.g7nightalarm.app.ui.trend.deriveTrend
+import com.g7nightalarm.app.ui.trend.TrendDirection
+import com.g7nightalarm.app.ui.trend.label
+import com.g7nightalarm.app.ui.trend.contentDescription
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.mode.AppMode
 import com.g7nightalarm.app.mode.ModeRepository
@@ -77,23 +83,14 @@ fun HomeScreen(
         remember(hours) { dao.streamSince(sinceMs).map { it } }.collectAsState(initial = emptyList())
     }
 
-    fun trendArrowFor(r: com.g7nightalarm.app.data.GlucoseReading?): String {
-        if (r == null) return ""
-        val name = r.slopeName ?: ""
-        if (name.contains("↗") || name.contains("↘") || name.contains("→")) return name
-        val s = r.slopeMgdlPerMin ?: 0.0
-        return when {
-            s > 0.5 -> "↗"
-            s < -0.5 -> "↘"
-            else -> "→"
-        }
-    }
+    // Reading header (value + units); trend arrow and label rendered separately
     val title = if (latest == null) {
         "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
     } else {
-        "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${trendArrowFor(latest)}"
+        "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
+    val trend = deriveTrend(latest, previous = null)
 
     Box(
         modifier = Modifier
@@ -159,14 +156,34 @@ fun HomeScreen(
                         // Functional reading value should use system font, not decorative
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                         modifier = Modifier.semantics {
-                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
-                                when (trendArrowFor(latest)) {
-                                    "↗" -> "rising"
-                                    "↘" -> "falling"
-                                    else -> "steady"
-                                }
+                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
                         }
                     )
+                    // Trend arrow + label
+                    val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp() }
+                    if (trend.direction != TrendDirection.UNKNOWN) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .semantics { contentDescription = trend.contentDescription() }
+                        ) {
+                            TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                trend.label(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Trend unknown",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Text(
                         "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
                         color = Color(0xFFB0B0B0),
@@ -196,14 +213,33 @@ fun HomeScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                         modifier = Modifier.semantics {
-                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}, " +
-                                when (trendArrowFor(latest)) {
-                                    "↗" -> "rising"
-                                    "↘" -> "falling"
-                                    else -> "steady"
-                                }
+                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
                         }
                     )
+                    val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp() }
+                    if (trend.direction != TrendDirection.UNKNOWN) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .semantics { contentDescription = trend.contentDescription() }
+                        ) {
+                            TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                trend.label(),
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Trend unknown",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     Text(
                         "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
                         color = Color(0xFFB0B0B0),

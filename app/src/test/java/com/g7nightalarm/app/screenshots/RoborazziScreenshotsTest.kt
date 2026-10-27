@@ -71,6 +71,142 @@ class RoborazziScreenshotsTest {
         }
     }
 
+    @Test
+    fun alarm_urgent_double_down() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 6 * 60_000L, mgdl = 70.0, slopeMgdlPerMin = null, slopeName = "DoubleDown", source = "test"))
+            db.insert(GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -3.4, slopeName = "DoubleDown", source = "test"))
+        }
+        setUnits(Units.MG_DL)
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 58.0, slopeMgdlPerMin = -3.4, slopeName = "DoubleDown", source = "test")
+        composeRule.setContent {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    com.g7nightalarm.app.ui.alarm.AlarmContent(
+                        type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                        onDismiss = {},
+                        animationsEnabled = false,
+                        previewLatest = latest,
+                        previewUnits = Units.MG_DL
+                    )
+                }
+            }
+        }
+        composeRule.waitUntil(5_000) {
+            try {
+                composeRule.onNodeWithText("Falling fast", substring = true).assertExists(); true
+            } catch (_: AssertionError) { false }
+        }
+        renderAndSavePngActivity("alarm_urgent_double_down.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    @Test
+    fun alarm_high_double_up() {
+        val now = System.currentTimeMillis()
+        val db = AppDatabase.get(context).glucoseDao()
+        runBlocking {
+            db.insert(GlucoseReading(timestamp = now - 5 * 60_000L, mgdl = 200.0, slopeMgdlPerMin = null, slopeName = "DoubleUp", source = "test"))
+            db.insert(GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 3.5, slopeName = "DoubleUp", source = "test"))
+        }
+        setUnits(Units.MG_DL)
+        val latest = GlucoseReading(timestamp = now, mgdl = 260.0, slopeMgdlPerMin = 3.5, slopeName = "DoubleUp", source = "test")
+        composeRule.setContent {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    com.g7nightalarm.app.ui.alarm.AlarmContent(
+                        type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                        onDismiss = {},
+                        animationsEnabled = false,
+                        previewLatest = latest,
+                        previewUnits = Units.MG_DL
+                    )
+                }
+            }
+        }
+        composeRule.waitUntil(5_000) {
+            try { composeRule.onNodeWithText("Rising fast", substring = true).assertExists(); true }
+            catch (_: AssertionError) { false }
+        }
+        renderAndSavePngActivity("alarm_high_double_up.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_HIGH,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun TrendGallery(modifier: Modifier = Modifier) {
+        androidx.compose.material3.MaterialTheme {
+            androidx.compose.foundation.layout.Column(
+                modifier = modifier.background(Color.Black).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                val entries = listOf(
+                    "DoubleUp" to "Rising fast",
+                    "SingleUp" to "Rising",
+                    "FortyFiveUp" to "Rising slowly",
+                    "Flat" to "Steady",
+                    "FortyFiveDown" to "Falling slowly",
+                    "SingleDown" to "Falling",
+                    "DoubleDown" to "Falling fast",
+                )
+                entries.forEach { (_, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        com.g7nightalarm.app.ui.trend.TrendArrowIcon(
+                            direction = when (label) {
+                                "Rising fast" -> com.g7nightalarm.app.ui.trend.TrendDirection.DOUBLE_UP
+                                "Rising" -> com.g7nightalarm.app.ui.trend.TrendDirection.SINGLE_UP
+                                "Rising slowly" -> com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_UP
+                                "Steady" -> com.g7nightalarm.app.ui.trend.TrendDirection.FLAT
+                                "Falling slowly" -> com.g7nightalarm.app.ui.trend.TrendDirection.FORTY_FIVE_DOWN
+                                "Falling" -> com.g7nightalarm.app.ui.trend.TrendDirection.SINGLE_DOWN
+                                "Falling fast" -> com.g7nightalarm.app.ui.trend.TrendDirection.DOUBLE_DOWN
+                                else -> com.g7nightalarm.app.ui.trend.TrendDirection.UNKNOWN
+                            },
+                            color = Color.White,
+                            size = 96.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, color = Color.White, style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp))
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun arrows_gallery_tablet() {
+        renderAndSavePngActivity("arrows_gallery_tablet.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) { TrendGallery(Modifier.fillMaxSize()) }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_arrows_gallery() {
+        renderAndSavePngActivity("phone_arrows_gallery.png") {
+            Box(Modifier.size(411.dp, 891.dp)) { TrendGallery(Modifier.fillMaxSize()) }
+        }
+    }
+
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
         val points = hours * 12
         val list = ArrayList<GlucoseReading>(points + 2)
@@ -429,7 +565,7 @@ class RoborazziScreenshotsTest {
         }
         composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
-        composeRule.onNodeWithText("↘", substring = true).assertExists()
+        composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
         // Render via activity using previewLatest to ensure deterministic text
@@ -463,7 +599,7 @@ class RoborazziScreenshotsTest {
             } catch (_: AssertionError) { false }
         }
         composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
-        composeRule.onNodeWithText("↘", substring = true).assertExists()
+        composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_low_warn.png") {
@@ -496,7 +632,7 @@ class RoborazziScreenshotsTest {
             } catch (_: AssertionError) { false }
         }
         composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
-        composeRule.onNodeWithText("↗", substring = true).assertExists()
+        composeRule.onNodeWithText("Rising slowly", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_high.png") {
@@ -527,7 +663,7 @@ class RoborazziScreenshotsTest {
             catch (_: AssertionError) { false }
         }
         composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
-        composeRule.onNodeWithText("→", substring = true).assertExists()
+        composeRule.onNodeWithText("Steady", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("alarm_signal_lost.png") {
@@ -615,7 +751,7 @@ class RoborazziScreenshotsTest {
         }
             composeRule.onNodeWithText("URGENT ALARM").assertExists()
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
-            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_urgent.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
@@ -647,7 +783,7 @@ class RoborazziScreenshotsTest {
             catch (_: AssertionError) { false }
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
-            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low_warn.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
@@ -679,7 +815,7 @@ class RoborazziScreenshotsTest {
             catch (_: AssertionError) { false }
         }
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
-            composeRule.onNodeWithText("↘", substring = true).assertExists()
+            composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_low.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
@@ -711,7 +847,7 @@ class RoborazziScreenshotsTest {
             catch (_: AssertionError) { false }
         }
             composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
-            composeRule.onNodeWithText("↗", substring = true).assertExists()
+            composeRule.onNodeWithText("Rising slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_high.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
