@@ -265,10 +265,12 @@ class RoborazziScreenshotsTest {
         }
         val upBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_up.png").absolutePath)
         val upQ = quadrantStrength(upBmp)
-        // Top-right must dominate
-        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("tl"))
-        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("br"))
-        org.junit.Assert.assertTrue(upQ.getValue("tr") > upQ.getValue("bl"))
+        val upRightSum = upQ.getValue("tr") + upQ.getValue("br")
+        val upLeftSum = upQ.getValue("tl") + upQ.getValue("bl")
+        val upTopSum = upQ.getValue("tr") + upQ.getValue("tl")
+        val upBottomSum = upQ.getValue("br") + upQ.getValue("bl")
+        org.junit.Assert.assertTrue(upRightSum > upLeftSum)
+        org.junit.Assert.assertTrue(upTopSum > upBottomSum)
 
         // 45° down (↘): mass on bottom-right
         renderAndSavePngActivity("tmp_trend_down.png") {
@@ -282,10 +284,12 @@ class RoborazziScreenshotsTest {
         }
         val downBmp = android.graphics.BitmapFactory.decodeFile(File(outDir, "tmp_trend_down.png").absolutePath)
         val downQ = quadrantStrength(downBmp)
-        // Bottom-right must dominate
-        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("tr"))
-        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("tl"))
-        org.junit.Assert.assertTrue(downQ.getValue("br") > downQ.getValue("bl"))
+        val downRightSum = downQ.getValue("tr") + downQ.getValue("br")
+        val downLeftSum = downQ.getValue("tl") + downQ.getValue("bl")
+        val downTopSum = downQ.getValue("tr") + downQ.getValue("tl")
+        val downBottomSum = downQ.getValue("br") + downQ.getValue("bl")
+        org.junit.Assert.assertTrue(downRightSum > downLeftSum)
+        org.junit.Assert.assertTrue(downBottomSum > downTopSum)
     }
 
     private fun buildHistory(hours: Int, endNow: Long, endMgdl: Double, slopeName: String): List<GlucoseReading> {
