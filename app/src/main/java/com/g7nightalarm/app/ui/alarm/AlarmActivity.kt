@@ -242,7 +242,7 @@ fun AlarmContent(
                     direction = trend.direction,
                     color = titleColor,
                     size = arrowSize,
-                    modifier = Modifier.alignBy { (it.height * 0.78f).toInt() } // approximate cap-height baseline alignment
+                    modifier = Modifier.alignBy { (it.measuredHeight * 0.78f).toInt() } // approximate cap-height baseline alignment
                 )
             }
             // Prominent, centered trend label under the reading
