@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.ui.theme.G7Theme
@@ -43,6 +44,7 @@ import com.g7nightalarm.app.receiver.AlarmActionReceiver
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.g7nightalarm.app.data.AppDatabase
@@ -153,14 +155,24 @@ fun AlarmContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val cfg = LocalConfiguration.current
+        val titleTextStyle = if (cfg.screenWidthDp < 500) {
+            MaterialTheme.typography.displayMedium
+        } else {
+            MaterialTheme.typography.displayLarge
+        }
         Text(
             title,
-            style = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Default, color = titleColor),
+            style = titleTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
             fontWeight = FontWeight.ExtraBold,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = title }
+                ,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip
         )
         Text(
             when (dismissLabel) {
