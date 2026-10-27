@@ -889,7 +889,7 @@ class RoborazziScreenshotsTest {
             catch (_: AssertionError) { false }
         }
             composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
-            composeRule.onNodeWithText("→", substring = true).assertExists()
+            composeRule.onNodeWithText("Steady", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_signal_lost.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
