@@ -44,11 +44,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.viewinterop.AndroidView
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.settings.Units
 import com.g7nightalarm.app.util.UnitsUtil
+import android.widget.TextView
+import android.util.TypedValue
+import androidx.compose.ui.graphics.toArgb
+import android.view.Gravity
+import android.graphics.Typeface
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -158,13 +164,19 @@ fun AlarmContent(
         } else {
             MaterialTheme.typography.displayLarge
         }
-        Text(
-            title,
-            style = titleTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
-            fontWeight = FontWeight.ExtraBold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
+        // Title rendered via a native TextView to ensure robust accessibility exposure on all AVDs
+        AndroidView(
+            factory = { ctx ->
+                TextView(ctx).apply {
+                    text = title
+                    setTextColor(titleColor.toArgb())
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.DEFAULT_BOLD
+                    val sp = if (cfg.screenWidthDp < 500) 36f else 48f
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             when (dismissLabel) {

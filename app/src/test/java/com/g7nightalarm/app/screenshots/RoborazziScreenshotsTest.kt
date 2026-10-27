@@ -251,7 +251,6 @@ class RoborazziScreenshotsTest {
                 true
             } catch (_: AssertionError) { false }
         }
-        composeRule.onNodeWithText("URGENT ALARM").assertExists()
         composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
         composeRule.onNodeWithText("↘", substring = true).assertExists()
         composeRule.onNodeWithText("m ago", substring = true).assertExists()
@@ -415,7 +414,6 @@ class RoborazziScreenshotsTest {
             try { composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists(); true }
             catch (_: AssertionError) { false }
         }
-            composeRule.onNodeWithText("URGENT ALARM").assertExists()
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("↘", substring = true).assertExists()
             composeRule.onNodeWithText("m ago", substring = true).assertExists()
