@@ -1,8 +1,12 @@
 package com.g7nightalarm.app.alarm
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
@@ -24,7 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.GraphicsMode.Mode.NATIVE
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 /**
@@ -69,36 +73,43 @@ class AlarmTrendInlineAlignmentTest {
         height: androidx.compose.ui.unit.Dp,
         fontScale: Float
     ) {
-        directions.forEach { (direction, slopeName) ->
-            val layoutRef = AtomicReference<TextLayoutResult>()
-            val latest = GlucoseReading(
-                timestamp = System.currentTimeMillis() - 60_000L,
-                mgdl = 58.0,
-                slopeMgdlPerMin = null,
-                slopeName = slopeName,
-                source = "test"
-            )
-            composeRule.setContent {
-                val base = LocalDensity.current
-                G7Theme {
-                    CompositionLocalProvider(
-                        LocalDensity provides Density(base.density, fontScale = fontScale)
-                    ) {
-                        Box(Modifier.size(width, height)) {
-                            AlarmContent(
-                                type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
-                                onDismiss = {},
-                                animationsEnabled = false,
-                                previewLatest = latest,
-                                previewUnits = Units.MG_DL,
-                                onReadingLayout = { layoutRef.set(it) }
-                            )
+        // Native graphics allows setContent once, so every direction is composed together.
+        val layouts = ConcurrentHashMap<TrendDirection, TextLayoutResult>()
+        composeRule.setContent {
+            val base = LocalDensity.current
+            G7Theme {
+                CompositionLocalProvider(
+                    LocalDensity provides Density(base.density, fontScale = fontScale)
+                ) {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        directions.forEach { (direction, slopeName) ->
+                            key(direction) {
+                                val latest = GlucoseReading(
+                                    timestamp = System.currentTimeMillis() - 60_000L,
+                                    mgdl = 58.0,
+                                    slopeMgdlPerMin = null,
+                                    slopeName = slopeName,
+                                    source = "test"
+                                )
+                                Box(Modifier.size(width, height)) {
+                                    AlarmContent(
+                                        type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_URGENT,
+                                        onDismiss = {},
+                                        animationsEnabled = false,
+                                        previewLatest = latest,
+                                        previewUnits = Units.MG_DL,
+                                        onReadingLayout = { layouts[direction] = it }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-            composeRule.waitForIdle()
-            val layout = layoutRef.get()
+        }
+        composeRule.waitForIdle()
+        directions.forEach { (direction, _) ->
+            val layout = layouts[direction]
             assertNotNull("No reading layout for $direction @ fontScale $fontScale", layout)
             assertArrowAligned(layout!!, "$direction fontScale=$fontScale")
         }
