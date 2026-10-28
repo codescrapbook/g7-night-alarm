@@ -14,9 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -42,6 +39,7 @@ import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.ui.a11y.fontSizeSp
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -173,7 +171,19 @@ fun rotationDegreesFor(direction: TrendDirection): Float? = when (direction) {
 /** Cap-height of the reading digits. 0.78em is taller than the glyph and hangs below the baseline. */
 internal val TrendArrowHeight = 0.70.em
 internal val TrendArrowWidthSingle = 0.78.em
-internal val TrendArrowWidthDouble = 1.15.em
+/** Wide enough for two heavy shafts with a small gap. Height stays 0.70em. */
+internal val TrendArrowWidthDouble = 1.30.em
+
+/** Shaft thickness as a fraction of the arrow's own box (the smaller side). */
+internal const val ArrowShaftFraction = 0.22f
+/** Arrowhead width as a fraction of the arrow's own box width. */
+internal const val ArrowHeadWidthFraction = 0.70f
+/** Share of the arrow length taken by the head. The rest is the shaft. */
+internal const val ArrowHeadLengthFraction = 0.78f
+/** Gap between the two arrows, as a fraction of the shorter box side. */
+internal const val ArrowDoubleGapFraction = 0.06f
+
+private const val TrendInlineAlternate = "[trend]"
 
 @Composable
 fun TrendArrowIcon(
@@ -188,81 +198,131 @@ fun TrendArrowIcon(
         val w = this.size.width
         val h = this.size.height
         if (w <= 1f || h <= 1f) return@Canvas
-        val deg = rotationDegreesFor(direction) ?: return@Canvas
-        val sw = 0.14f * min(w, h)
-        val headHalfW = 0.22f * min(w, h)
-        val gap = 0.16f * min(w, h)
-        val doubles = direction == TrendDirection.DOUBLE_UP || direction == TrendDirection.DOUBLE_DOWN
-        val offsets = if (doubles) {
-            val sep = min((w / 2f) - headHalfW, headHalfW + gap / 2f).coerceAtLeast(sw)
-            listOf(-sep, sep)
+        arrowPolygons(direction, w, h).forEach { pts ->
+            if (pts.size < 3) return@forEach
+            val path = Path().apply {
+                moveTo(pts[0].x, pts[0].y)
+                for (i in 1 until pts.size) lineTo(pts[i].x, pts[i].y)
+                close()
+            }
+            drawPath(path, color)
+        }
+    }
+}
+
+/**
+ * Filled arrow polygons in the placeholder box. One polygon for a single arrow,
+ * two side by side for the doubles. Area is the shoelace of these polygons —
+ * a hairline stroke cannot satisfy [arrowFillFraction].
+ */
+@VisibleForTesting
+internal fun arrowPolygons(direction: TrendDirection, w: Float, h: Float): List<List<Offset>> {
+    val deg = rotationDegreesFor(direction) ?: return emptyList()
+    val doubles = direction == TrendDirection.DOUBLE_UP || direction == TrendDirection.DOUBLE_DOWN
+    val cells = if (doubles) 2 else 1
+    val gap = if (doubles) ArrowDoubleGapFraction * min(w, h) else 0f
+    val cellW = (w - gap * (cells - 1)) / cells
+    val pivotX = w / 2f
+    val pivotY = h / 2f
+    return (0 until cells).map { i ->
+        val cx = i * (cellW + gap) + cellW / 2f
+        val headHalf = ArrowHeadWidthFraction * cellW / 2f
+        val shaftHalf = ArrowShaftFraction * min(cellW, h) / 2f
+        longestArrow(cx, h / 2f, headHalf, shaftHalf, deg, pivotX, pivotY, w, h)
+    }
+}
+
+/**
+ * Grows the arrow along its axis until the filled shape meets the box.
+ * Shaft width and head width stay fixed, so a 45° arrow stays heavy and
+ * reaches the edges instead of sitting in the middle of the placeholder.
+ */
+private fun longestArrow(
+    cx: Float,
+    cy: Float,
+    headHalf: Float,
+    shaftHalf: Float,
+    deg: Float,
+    pivotX: Float,
+    pivotY: Float,
+    w: Float,
+    h: Float
+): List<Offset> {
+    fun placed(halfLen: Float): List<Offset> {
+        val up = upArrowPolygon(cx, cy - halfLen, cy + halfLen, headHalf, shaftHalf)
+        return up.map { rotateClockwise(it, deg, pivotX, pivotY) }
+    }
+    var best = placed(h / 2f)
+    var lo = h / 2f
+    var hi = hypot(w, h)
+    repeat(24) {
+        val mid = (lo + hi) / 2f
+        val pts = placed(mid)
+        if (contained(pts, w, h)) {
+            best = pts
+            lo = mid
         } else {
-            listOf(0f)
-        }
-        val half = edgeHalfLength(deg, w, h) * 0.96f
-        offsets.forEach { ox ->
-            drawUpArrow(deg, ox, half, headHalfW, sw, color)
+            hi = mid
         }
     }
+    return best
 }
 
-/** Half-length of an arrow centered in the box so the tip and tail land on the edges after rotation. */
-private fun edgeHalfLength(angleDeg: Float, w: Float, h: Float): Float {
-    val rad = Math.toRadians(angleDeg.toDouble())
-    val ux = sin(rad).toFloat()
-    val uy = (-cos(rad)).toFloat()
-    val cx = w / 2f
-    val cy = h / 2f
-    val tip = travel(cx, cy, ux, uy, w, h)
-    val tail = travel(cx, cy, -ux, -uy, w, h)
-    return min(tip, tail)
-}
-
-private fun travel(x: Float, y: Float, dx: Float, dy: Float, w: Float, h: Float): Float {
-    val tx = when {
-        dx > 1e-4f -> (w - x) / dx
-        dx < -1e-4f -> (0f - x) / dx
-        else -> Float.POSITIVE_INFINITY
+private fun contained(points: List<Offset>, w: Float, h: Float): Boolean {
+    for (p in points) {
+        if (p.x < -0.5f || p.y < -0.5f || p.x > w + 0.5f || p.y > h + 0.5f) return false
     }
-    val ty = when {
-        dy > 1e-4f -> (h - y) / dy
-        dy < -1e-4f -> (0f - y) / dy
-        else -> Float.POSITIVE_INFINITY
-    }
-    return min(tx, ty)
+    return true
 }
 
-private fun DrawScope.drawUpArrow(
-    angleDeg: Float,
-    offsetX: Float,
-    half: Float,
+/** Filled area divided by the placeholder box. Independent of bitmaps. */
+@VisibleForTesting
+internal fun arrowFillFraction(direction: TrendDirection, widthPx: Float, heightPx: Float): Float {
+    if (widthPx <= 0f || heightPx <= 0f) return 0f
+    var area = 0f
+    for (poly in arrowPolygons(direction, widthPx, heightPx)) {
+        area += polygonArea(poly)
+    }
+    return area / (widthPx * heightPx)
+}
+
+private fun upArrowPolygon(
+    cx: Float,
+    top: Float,
+    bottom: Float,
     headHalfW: Float,
-    strokeWidth: Float,
-    color: Color
-) {
-    if (half <= strokeWidth) return
-    rotate(degrees = angleDeg, pivot = center) {
-        val cx = center.x + offsetX
-        val cy = center.y
-        val tipY = cy - half
-        val tailY = cy + half
-        val headLen = (tailY - tipY) * 0.42f
-        val baseY = tipY + headLen
-        drawLine(
-            color = color,
-            start = Offset(cx, tailY),
-            end = Offset(cx, baseY),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Butt
-        )
-        val head = Path().apply {
-            moveTo(cx, tipY)
-            lineTo(cx - headHalfW, baseY)
-            lineTo(cx + headHalfW, baseY)
-            close()
-        }
-        drawPath(head, color)
+    shaftHalfW: Float
+): List<Offset> {
+    val baseY = top + (bottom - top) * ArrowHeadLengthFraction
+    val shaft = shaftHalfW.coerceAtMost(headHalfW)
+    return listOf(
+        Offset(cx, top),
+        Offset(cx - headHalfW, baseY),
+        Offset(cx - shaft, baseY),
+        Offset(cx - shaft, bottom),
+        Offset(cx + shaft, bottom),
+        Offset(cx + shaft, baseY),
+        Offset(cx + headHalfW, baseY)
+    )
+}
+
+private fun rotateClockwise(p: Offset, degrees: Float, cx: Float, cy: Float): Offset {
+    val rad = Math.toRadians(degrees.toDouble())
+    val c = cos(rad).toFloat()
+    val s = sin(rad).toFloat()
+    val dx = p.x - cx
+    val dy = p.y - cy
+    return Offset(cx + dx * c - dy * s, cy + dx * s + dy * c)
+}
+
+private fun polygonArea(points: List<Offset>): Float {
+    var sum = 0f
+    for (i in points.indices) {
+        val a = points[i]
+        val b = points[(i + 1) % points.size]
+        sum += a.x * b.y - b.x * a.y
     }
+    return abs(sum) * 0.5f
 }
 
 /**
@@ -295,7 +355,7 @@ fun InlineTrendReading(
         append(reading)
         if (showArrow) {
             append(" ")
-            appendInlineContent("trend", "[trend]")
+            appendInlineContent("trend", TrendInlineAlternate)
         }
     }
     val inline = if (showArrow) {
@@ -375,7 +435,11 @@ private fun fitReadingSize(
             softWrap = false,
             maxLines = 1,
             placeholders = listOf(
-                AnnotatedString.Range(placeholder, placeholderStart, placeholderStart + 1)
+                AnnotatedString.Range(
+                    placeholder,
+                    placeholderStart,
+                    placeholderStart + TrendInlineAlternate.length
+                )
             ),
             constraints = Constraints(maxWidth = maxWidthPx)
         )
