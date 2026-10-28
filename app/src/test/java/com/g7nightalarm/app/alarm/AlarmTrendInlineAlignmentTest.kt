@@ -22,6 +22,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import org.robolectric.annotation.GraphicsMode.Mode.NATIVE
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 
@@ -31,6 +33,7 @@ import kotlin.math.abs
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
+@GraphicsMode(NATIVE)
 class AlarmTrendInlineAlignmentTest {
     @get:Rule
     val composeRule = createComposeRule()
