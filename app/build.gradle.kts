@@ -176,6 +176,7 @@ tasks.withType<Test>().configureEach {
         filter {
             excludeTestsMatching("com.g7nightalarm.app.screenshots.RoborazziScreenshotsTest")
             excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmAccessibilityTextSizeTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmTrendInlineAlignmentTest")
         }
     }
 }

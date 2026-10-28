@@ -32,10 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.platform.LocalDensity
-import com.g7nightalarm.app.ui.trend.TrendArrowIcon
+import com.g7nightalarm.app.ui.trend.InlineTrendReading
 import com.g7nightalarm.app.ui.trend.deriveTrend
 import com.g7nightalarm.app.ui.trend.TrendDirection
 import com.g7nightalarm.app.ui.trend.label
@@ -91,6 +88,14 @@ fun HomeScreen(
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
     val trend = deriveTrend(latest, previous = null)
+    val spokenReading = if (latest == null) {
+        "No recent reading"
+    } else {
+        val unitWords = if (settings.units == Units.MG_DL) "milligrams per deciliter" else "millimoles per liter"
+        val base = "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} $unitWords"
+        if (trend.direction == TrendDirection.UNKNOWN) base
+        else "$base, ${trend.contentDescription().replaceFirstChar { it.lowercase() }}"
+    }
 
     Box(
         modifier = Modifier
@@ -148,33 +153,24 @@ fun HomeScreen(
         if (isNarrow) {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column {
-                    Text(
-                        title,
+                    InlineTrendReading(
+                        reading = title,
+                        direction = trend.direction,
                         color = Color.White,
                         style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        // Functional reading value should use system font, not decorative
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
-                        modifier = Modifier.semantics {
-                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
-                        }
+                        contentDescription = spokenReading,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    // Inline arrow and centered label
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .semantics { contentDescription = trend.contentDescription() }
-                    ) {
-                        val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp().coerceAtLeast(48.dp) }
-                        TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            trend.label(),
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
-                        )
-                    }
+                    Text(
+                        trend.label(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Default
+                        ),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                     Text(
                         "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
                         color = Color(0xFFB0B0B0),
@@ -197,31 +193,24 @@ fun HomeScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     // High-contrast, large digits readable at distance
-                    Text(
-                        title,
+                    InlineTrendReading(
+                        reading = title,
+                        direction = trend.direction,
                         color = Color.White,
                         style = MaterialTheme.typography.displayLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
-                        modifier = Modifier.semantics {
-                            contentDescription = if (latest == null) "No recent reading" else "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
-                        }
+                        contentDescription = spokenReading,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .semantics { contentDescription = trend.contentDescription() }
-                    ) {
-                        val arrowSize = with(LocalDensity.current) { MaterialTheme.typography.displayLarge.fontSize.toDp().coerceAtLeast(48.dp) }
-                        TrendArrowIcon(direction = trend.direction, color = Color.White, size = arrowSize)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            trend.label(),
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.SemiBold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default)
-                        )
-                    }
+                    Text(
+                        trend.label(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Default
+                        ),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                     Text(
                         "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
                         color = Color(0xFFB0B0B0),

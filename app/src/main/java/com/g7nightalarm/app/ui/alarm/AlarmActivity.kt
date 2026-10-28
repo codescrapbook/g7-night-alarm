@@ -69,11 +69,10 @@ import com.g7nightalarm.app.ui.a11y.fontSizeSp
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
-import androidx.compose.foundation.layout.Row
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import com.g7nightalarm.app.ui.trend.Trend
-import com.g7nightalarm.app.ui.trend.TrendArrowIcon
 import com.g7nightalarm.app.ui.trend.TrendDirection
+import com.g7nightalarm.app.ui.trend.InlineTrendReading
 import com.g7nightalarm.app.ui.trend.contentDescription
 import com.g7nightalarm.app.ui.trend.deriveTrend
 import com.g7nightalarm.app.ui.trend.label
@@ -117,7 +116,8 @@ fun AlarmContent(
     onDismiss: () -> Unit,
     animationsEnabled: Boolean = true,
     previewLatest: GlucoseReading? = null,
-    previewUnits: Units? = null
+    previewUnits: Units? = null,
+    onReadingLayout: (TextLayoutResult) -> Unit = {}
 ) {
     val context = LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
@@ -212,39 +212,29 @@ fun AlarmContent(
             } else {
                 MaterialTheme.typography.displayLarge
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            val spokenReading = if (latest == null) {
+                "No recent reading"
+            } else {
+                val unitWords = if (units == Units.MG_DL) "milligrams per deciliter" else "millimoles per liter"
+                val base = "${UnitsUtil.formatValue(latest.mgdl, units)} $unitWords"
+                if (trend.direction == TrendDirection.UNKNOWN) {
+                    base
+                } else {
+                    "$base, ${trend.contentDescription().replaceFirstChar { it.lowercase() }}"
+                }
+            }
+            InlineTrendReading(
+                reading = readingTitle,
+                direction = trend.direction,
+                color = titleColor,
+                style = readingTextStyle,
+                contentDescription = spokenReading,
                 modifier = Modifier
                     .padding(top = 24.dp)
-                    .semantics {
-                        contentDescription = if (latest == null) {
-                            "No recent reading"
-                        } else {
-                            "${UnitsUtil.formatValue(latest.mgdl, units)} ${if (units == Units.MG_DL) "mg per deciliter" else "millimoles per liter"}"
-                        }
-                        fontSizeSp = readingTextStyle.fontSize.value
-                    }
-                    .testTag("alarmReadingRow")
-            ) {
-                Text(
-                    readingTitle,
-                    style = readingTextStyle.copy(fontFamily = FontFamily.Default, color = titleColor),
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.alignByBaseline()
-                )
-                val arrowBase = with(LocalDensity.current) { readingTextStyle.fontSize.toDp() }
-                val minBase = if (cfg.screenWidthDp < 500) 64.dp else 80.dp
-                val arrowSize = (arrowBase * 1.10f).coerceAtLeast(minBase)
-                androidx.compose.foundation.layout.Spacer(Modifier.width(12.dp))
-                TrendArrowIcon(
-                    direction = trend.direction,
-                    color = titleColor,
-                    size = arrowSize,
-                    modifier = Modifier.alignBy { (it.measuredHeight * 0.78f).toInt() } // approximate cap-height baseline alignment
-                )
-            }
+                    .fillMaxWidth(),
+                testTag = "alarmReadingRow",
+                onTextLayout = onReadingLayout
+            )
             // Prominent, centered trend label under the reading
             Text(
                 text = trend.label(),
