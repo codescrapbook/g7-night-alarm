@@ -275,6 +275,8 @@ class EndToEndInstrumentedTest {
             }
             Assert.assertTrue("Alarm volume should reach max before snooze.", atMax)
             device.findObject(By.textContains("SNOOZE")).click()
+            val left = device.wait(Until.gone(By.textContains("URGENT")), 10_000)
+            Assert.assertTrue("Snooze should leave the alarm screen.", left)
             var stopped = false
             repeat(30) {
                 if (am.getStreamVolume(AudioManager.STREAM_ALARM) != max) {
@@ -284,7 +286,10 @@ class EndToEndInstrumentedTest {
                 Thread.sleep(500)
             }
             Assert.assertTrue("Snooze should stop the alarm sound.", stopped)
-            device.wait(Until.gone(By.textContains("URGENT")), 8_000)
+            Assert.assertFalse(
+                "The same urgent reading must not cancel the snooze.",
+                device.wait(Until.hasObject(By.textContains("URGENT")), 2_000)
+            )
             clockAdvance(10L * 60L * 1000L + 1_000L)
             val again = device.wait(Until.hasObject(By.textContains("URGENT")), 15_000) ||
                 device.wait(Until.hasObject(By.textContains("CHECK-IN")), 5_000)
