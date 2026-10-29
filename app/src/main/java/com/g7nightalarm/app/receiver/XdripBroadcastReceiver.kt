@@ -10,6 +10,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.round
+import com.g7nightalarm.app.settings.SettingsRepository
+import com.g7nightalarm.app.settings.SettingsKeys
+import com.g7nightalarm.app.time.ClockHolder
 
 class XdripBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -42,14 +45,30 @@ class XdripBroadcastReceiver : BroadcastReceiver() {
         )
         CoroutineScope(Dispatchers.IO).launch {
             val dao = AppDatabase.get(context).glucoseDao()
-            dao.insert(reading)
+            val rowId = dao.insert(reading)
             dao.prune(System.currentTimeMillis() - HISTORY_PRUNE_MS)
+            // Record last reading arrival using the monotonic debug-aware clock
+            val repo = SettingsRepository(context)
+            repo.update { p -> p[SettingsKeys.lastReadingAt] = ClockHolder.nowMs() }
+            try {
+                android.util.Log.i(
+                    TAG,
+                    "BG_ESTIMATE received mgdl=$mgdl ts=$ts slopePerMin=$slopePerMin updatedLastAt=${ClockHolder.nowMs()} insertRowId=$rowId"
+                )
+            } catch (_: Throwable) {}
+            // Proactively poke the service to evaluate now to reduce timing/race flakiness
+            try {
+                context.sendBroadcast(Intent(com.g7nightalarm.app.service.MonitorService.ACTION_BG_UPDATED))
+            } catch (_: Throwable) {}
         }
     }
 
     private fun handleNoData(context: Context) {
-        // Could set a flag or let service detect staleness
+        // Let the service detect staleness immediately
         Log.w(TAG, "xDrip+ reported BgEstimateNoData")
+        try {
+            context.sendBroadcast(Intent(com.g7nightalarm.app.service.MonitorService.ACTION_BG_UPDATED))
+        } catch (_: Throwable) {}
     }
 
     companion object {

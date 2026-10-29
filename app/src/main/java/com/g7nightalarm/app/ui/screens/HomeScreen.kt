@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,8 +29,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import com.g7nightalarm.app.ui.trend.InlineTrendReading
+import com.g7nightalarm.app.ui.trend.deriveTrend
+import com.g7nightalarm.app.ui.trend.TrendDirection
+import com.g7nightalarm.app.ui.trend.label
+import com.g7nightalarm.app.ui.trend.contentDescription
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.mode.AppMode
 import com.g7nightalarm.app.mode.ModeRepository
@@ -39,56 +51,226 @@ import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import com.g7nightalarm.app.settings.Units
 import com.g7nightalarm.app.util.UnitsUtil
+import android.os.Build
+import android.app.NotificationManager
+import android.content.Intent
+import android.provider.Settings
 
 @Composable
-fun HomeScreen(onOpenSettings: () -> Unit) {
+fun HomeScreen(
+    onOpenSettings: () -> Unit,
+    previewLatest: com.g7nightalarm.app.data.GlucoseReading? = null,
+    previewHistory: List<com.g7nightalarm.app.data.GlucoseReading>? = null,
+    previewIsSleep: Boolean? = null,
+    previewSnoozeTimeText: String? = null
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
     val settingsRepo = remember { SettingsRepository(context) }
     val modeRepo = remember { ModeRepository(context) }
-    val latest by remember { dao.latestFlow() }.collectAsState(initial = null)
+    val latest by if (previewLatest != null) {
+        remember { mutableStateOf(previewLatest) }
+    } else {
+        remember { dao.latestFlow() }.collectAsState(initial = null)
+    }
     var hours by remember { mutableIntStateOf(24) }
     val settings by settingsRepo.flow.collectAsState(initial = com.g7nightalarm.app.settings.SettingsState())
-    val isSleep = settings.sleepMode
+    val isSleep = previewIsSleep ?: settings.sleepMode
     val scope = remember { kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO) }
     val sinceMs = System.currentTimeMillis() - hours * 60L * 60L * 1000L
-    val history by remember(hours) {
-        dao.streamSince(sinceMs).map { it }
-    }.collectAsState(initial = emptyList())
+    val history by if (previewHistory != null) {
+        remember(previewHistory) { mutableStateOf(previewHistory) }
+    } else {
+        remember(hours) { dao.streamSince(sinceMs).map { it } }.collectAsState(initial = emptyList())
+    }
 
-    val title = when {
-        latest == null -> "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
-        else -> "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"} ${latest!!.slopeName ?: ""}"
+    // Reading header (value + units); trend arrow and label rendered separately
+    val title = if (latest == null) {
+        "— ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
+    } else {
+        "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} ${if (settings.units == Units.MG_DL) "mg/dL" else "mmol/L"}"
     }
     val ageMin = latest?.let { ((System.currentTimeMillis() - it.timestamp) / 60000.0).toInt() } ?: 0
+    val trend = deriveTrend(latest, previous = null)
+    val spokenReading = if (latest == null) {
+        "No recent reading"
+    } else {
+        val unitWords = if (settings.units == Units.MG_DL) "milligrams per deciliter" else "millimoles per liter"
+        val base = "${UnitsUtil.formatValue(latest!!.mgdl, settings.units)} $unitWords"
+        if (trend.direction == TrendDirection.UNKNOWN) base
+        else "$base, ${trend.contentDescription().replaceFirstChar { it.lowercase() }}"
+    }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF101010))
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text(title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold)
-                Text("Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}", color = Color.Gray)
+        // On Android 14+, warn the user if full-screen intent is not allowed for this app
+        val nm = remember { androidx.core.content.ContextCompat.getSystemService(context, NotificationManager::class.java) }
+        val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
+            try { nm?.canUseFullScreenIntent() == true } catch (_: Throwable) { false }
+        } else true
+        // Note: Removed decorative border to keep production and screenshots clean and high-contrast
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+        if (!canFullScreen) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFF59D), RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Full-screen alarms are disabled. Enable to allow urgent alarms to appear over lock screen.",
+                    color = Color.Black,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                Button(onClick = {
+                    try {
+                        val intent = Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Throwable) { }
+                }) {
+                    Text("Enable")
+                }
             }
-            Button(onClick = onOpenSettings) { Text("Settings") }
+        }
+        Text(
+            "Undead In Bed",
+            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.headlineLarge
+        )
+        val snoozeTimeText = previewSnoozeTimeText ?: run {
+            val until = settings.snoozeUntilWallMs
+            if (com.g7nightalarm.app.alarm.SnoozePolicy.isActive(com.g7nightalarm.app.time.ClockHolder.nowWallMs(), until)) {
+                com.g7nightalarm.app.alarm.SnoozePolicy.formatWakeTime(until)
+            } else {
+                null
+            }
+        }
+        if (snoozeTimeText != null) {
+            SnoozeBanner(snoozeTimeText) {
+                scope.launch { com.g7nightalarm.app.alarm.SnoozeController.cancel(context) }
+            }
+        }
+        val cfg = LocalConfiguration.current
+        val isNarrow = cfg.screenWidthDp < 500
+        if (isNarrow) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column {
+                    InlineTrendReading(
+                        reading = title,
+                        direction = trend.direction,
+                        color = Color.White,
+                        style = MaterialTheme.typography.displayLarge,
+                        contentDescription = spokenReading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        trend.label(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Default
+                        ),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
+                        color = Color(0xFFB0B0B0),
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp)
+                    )
+                }
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("settingsButton"),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("Settings") }
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    // High-contrast, large digits readable at distance
+                    InlineTrendReading(
+                        reading = title,
+                        direction = trend.direction,
+                        color = Color.White,
+                        style = MaterialTheme.typography.displayLarge,
+                        contentDescription = spokenReading,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        trend.label(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Default
+                        ),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    Text(
+                        "Updated ${ageMin}m ago · Mode: ${if (isSleep) "Sleep" else "Awake"}",
+                        color = Color(0xFFB0B0B0),
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp)
+                    )
+                }
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .height(56.dp)
+                        .testTag("settingsButton"),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("Settings") }
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = {
+            Button(
+                onClick = {
                 scope.launch {
                     modeRepo.setMode(AppMode.SLEEP, ModeTrigger.BUTTON)
                     settingsRepo.update { it[SettingsKeys.sleepMode] = true }
                 }
-            }) { Text("Good Night") }
-            Button(onClick = {
+            },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Good Night") }
+            Button(
+                onClick = {
                 scope.launch {
                     modeRepo.setMode(AppMode.AWAKE, ModeTrigger.BUTTON)
                     settingsRepo.update { it[SettingsKeys.sleepMode] = false }
                 }
-            }) { Text("Good Morning") }
+            },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("Good Morning") }
         }
         Box(
             modifier = Modifier
@@ -97,14 +279,27 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 .background(Color(0xFF181818), RoundedCornerShape(16.dp))
                 .padding(12.dp)
         ) {
-            GlucoseChart(history = history, low = UnitsUtil.convertThreshold(70.0, settings.units), urgentLow = UnitsUtil.convertThreshold(55.0, settings.units), high = UnitsUtil.convertThreshold(250.0, settings.units), units = settings.units)
+            GlucoseChart(
+                history = computeChartSeries(history, latest),
+                low = UnitsUtil.convertThreshold(80.0, settings.units),
+                urgentLow = UnitsUtil.convertThreshold(70.0, settings.units),
+                high = UnitsUtil.convertThreshold(250.0, settings.units),
+                units = settings.units
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(3, 6, 12, 24).forEach { h ->
-                Button(onClick = { hours = h }) { Text("${h}h") }
+                Button(
+                    onClick = { hours = h },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("${h}h") }
             }
         }
         Spacer(Modifier.weight(1f))
+        }
     }
 }
 
@@ -137,9 +332,10 @@ private fun GlucoseChart(
             val times = history.map { it.timestamp }
             val minT = times.min()
             val maxT = times.max()
+            val spanT = (maxT - minT).coerceAtLeast(1L)
             val path = Path()
-            history.sortedBy { it.timestamp }.forEachIndexed { idx, r ->
-                val x = ((r.timestamp - minT).toFloat() / (maxT - minT).toFloat()).coerceIn(0f, 1f) * w
+            history.forEachIndexed { idx, r ->
+                val x = ((r.timestamp - minT).toFloat() / spanT.toFloat()).coerceIn(0f, 1f) * w
                 val y = yFor(if (units == Units.MG_DL) r.mgdl else r.mgdl / 18.0)
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
@@ -148,6 +344,80 @@ private fun GlucoseChart(
     }
 }
 
+@Composable
+private fun SnoozeBanner(timeText: String, onCancel: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFF8E1), RoundedCornerShape(16.dp))
+            .padding(16.dp)
+            .testTag("snoozeBanner"),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Snoozed – waking you at",
+            color = Color.Black,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp,
+            lineHeight = 32.sp,
+            modifier = Modifier.testTag("snoozeBannerLabel")
+        )
+        Text(
+            text = timeText,
+            color = Color.Black,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            fontSize = 40.sp,
+            lineHeight = 48.sp,
+            modifier = Modifier.testTag("snoozeWakeTime")
+        )
+        Button(
+            onClick = onCancel,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .testTag("cancelSnooze"),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black, contentColor = Color.White),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                "Cancel snooze",
+                color = Color.White,
+                fontFamily = FontFamily.Default,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp
+            )
+        }
+    }
+}
+
 private val mgdlFormat = DecimalFormat("###0.#")
 private fun format(v: Double) = mgdlFormat.format(v)
+
+@androidx.annotation.VisibleForTesting
+internal fun computeChartSeries(
+    rawHistory: List<com.g7nightalarm.app.data.GlucoseReading>,
+    latest: com.g7nightalarm.app.data.GlucoseReading?
+): List<com.g7nightalarm.app.data.GlucoseReading> {
+    if (rawHistory.isEmpty() && latest == null) return emptyList()
+    // Sort strictly by timestamp
+    val sorted = rawHistory
+        .filter { it.mgdl > 0.0 }
+        .sortedBy { it.timestamp }
+    // For duplicate timestamps, keep the last value to align with what header shows as "latest"
+    val byTs = java.util.LinkedHashMap<Long, com.g7nightalarm.app.data.GlucoseReading>()
+    sorted.forEach { byTs[it.timestamp] = it }
+    var out = byTs.values.toList()
+    // Ensure the last point matches the displayed latest reading when available
+    if (latest != null && latest.mgdl > 0.0) {
+        if (out.isEmpty() || latest.timestamp > out.last().timestamp) {
+            out = out + latest
+        } else if (latest.timestamp == out.last().timestamp) {
+            // Replace last with latest value if timestamps are equal
+            out = out.dropLast(1) + latest
+        }
+    }
+    return out
+}
 

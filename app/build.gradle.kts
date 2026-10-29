@@ -62,6 +62,10 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = true
+        animationsDisabled = true
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        // Clear app data between tests when using orchestrator
+        emulatorSnapshots.enableForTestFailures = false
     }
 }
 
@@ -109,11 +113,16 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("io.mockk:mockk:1.13.12")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.ext:junit-ktx:1.2.1")
+    androidTestImplementation("androidx.test:rules:1.6.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Espresso Accessibility checks (latest available on Google Maven is 4.1.1)
+    androidTestImplementation("com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:4.1.1")
     // Robolectric & test utils
     testImplementation("org.robolectric:robolectric:4.12.2")
     testImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
     testImplementation("com.google.truth:truth:1.4.4")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     // Roborazzi for JVM screenshots
@@ -121,6 +130,9 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi:$roborazziVersion")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:$roborazziVersion")
     testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:$roborazziVersion")
+    // Instrumented testing
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
 }
 
 // Allow references to generated code
@@ -154,8 +166,20 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     val mainSrc = files("$projectDir/src/main/java")
     classDirectories.setFrom(debugTree)
     sourceDirectories.setFrom(mainSrc)
-    executionData.setFrom(fileTree("$buildDir") {
-        include("**/*.exec", "**/*.ec")
-    })
+    // Only include the unit test coverage data to satisfy Gradle 8.9 work validation
+    executionData.setFrom(files("$buildDir/jacoco/testDebugUnitTest.exec"))
+}
+
+// Exclude heavy Robolectric screenshot tests from release unit test variant
+tasks.withType<Test>().configureEach {
+    if (name == "testReleaseUnitTest") {
+        filter {
+            excludeTestsMatching("com.g7nightalarm.app.screenshots.RoborazziScreenshotsTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmAccessibilityTextSizeTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmTrendInlineAlignmentTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmReadingSizeTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.LayoutTextBoundsTest")
+        }
+    }
 }
 

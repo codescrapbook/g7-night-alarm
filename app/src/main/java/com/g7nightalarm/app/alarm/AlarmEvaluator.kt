@@ -3,6 +3,7 @@ package com.g7nightalarm.app.alarm
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.settings.SettingsState
 import kotlin.math.abs
+import com.g7nightalarm.app.time.ClockHolder
 
 sealed class AlarmEvent {
     data class UrgentLow(val valueMgdl: Double) : AlarmEvent()
@@ -20,12 +21,34 @@ class AlarmEvaluator {
         nowMs: Long,
         settings: SettingsState
     ): AlarmEvent {
-        if (latest == null) return AlarmEvent.NoData(settings.thresholds.noDataMinutes)
-
-        val ageMin = ((nowMs - latest.timestamp) / 60000.0).toInt()
-        if (ageMin >= settings.thresholds.noDataMinutes) {
-            return AlarmEvent.NoData(ageMin)
+        // If we have no latest reading, compute staleness from the best available baseline:
+        // max(lastReadingAtMs, monitoringStartedAtMs) on the monotonic clock.
+        if (latest == null) {
+            val base = when {
+                settings.lastReadingAtMs > 0L && settings.monitoringStartedAtMs > 0L ->
+                    kotlin.math.max(settings.lastReadingAtMs, settings.monitoringStartedAtMs)
+                settings.lastReadingAtMs > 0L -> settings.lastReadingAtMs
+                settings.monitoringStartedAtMs != 0L -> settings.monitoringStartedAtMs
+                else -> 0L
+            }
+            if (base == 0L) return AlarmEvent.None
+            val ageMin = ((nowMs - base) / 60000.0).toInt()
+            return if (ageMin >= settings.thresholds.noDataMinutes) {
+                AlarmEvent.NoData(ageMin)
+            } else {
+                AlarmEvent.None
+            }
         }
+
+        val lastAt = settings.lastReadingAtMs
+        val ageMin = if (lastAt > 0L) {
+            // Monotonic basis: nowMs and lastAt are both elapsed-time based
+            ((nowMs - lastAt) / 60000.0).toInt()
+        } else {
+            // Fallback: both values should share the same basis (caller provides nowMs accordingly)
+            ((nowMs - latest.timestamp) / 60000.0).toInt()
+        }
+        if (ageMin >= settings.thresholds.noDataMinutes) return AlarmEvent.NoData(ageMin)
 
         val mgdl = latest.mgdl
         if (mgdl <= settings.thresholds.urgentLow) {

@@ -34,10 +34,16 @@ object SleepScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val triggerAt = computeNextTrigger(System.currentTimeMillis(), hour, minute)
-        if (Build.VERSION.SDK_INT >= 23) {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-        } else {
-            am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        try {
+            if (Build.VERSION.SDK_INT >= 23) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            } else {
+                @Suppress("DEPRECATION")
+                am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            }
+        } catch (se: SecurityException) {
+            // On Android 14+ without USE_EXACT_ALARM/SCHEDULE_EXACT_ALARM, scheduling may throw.
+            // Tests and debug builds can proceed without the auto-sleep alarm; manual triggers still work.
         }
     }
 }

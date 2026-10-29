@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">G7 Night Alarm</string>
+    <string name="app_name">Undead In Bed</string>
     <string name="notification_channel_monitor_name">Glucose Monitor</string>
     <string name="notification_channel_monitor_desc">Persistent monitoring and latest glucose reading</string>
     <string name="notification_channel_alarm_name">Urgent Glucose Alarm</string>

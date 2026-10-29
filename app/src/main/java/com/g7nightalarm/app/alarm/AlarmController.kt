@@ -9,12 +9,17 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
+import android.provider.Settings
 import com.g7nightalarm.app.G7NightAlarmApp
 import com.g7nightalarm.app.R
 import com.g7nightalarm.app.ui.alarm.AlarmActivity
@@ -23,24 +28,62 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sin
+import com.g7nightalarm.app.time.ClockHolder
+import java.util.concurrent.atomic.AtomicLong
 
 class AlarmController(private val context: Context) {
     private var audioTrack: AudioTrack? = null
     private var audioThread: Thread? = null
-    private var previousAlarmVolume: Int? = null
+    // Per-instance pre-set volume and ownership token for STREAM_ALARM control
+    private var myPreSetAlarmVolume: Int? = null
+    private var myVolumeOwnerToken: Long = 0L
+    companion object {
+        // Global restore target captured by the first owner in a session
+        @Volatile private var globalRestoreTargetVolume: Int? = null
+        // Ownership token for whoever most recently took control of STREAM_ALARM
+        private val tokenCounter = AtomicLong(0L)
+        @Volatile private var currentVolumeOwnerToken: Long = 0L
+        private const val ALARM_NOTIF_ID = 1001
+        @Volatile private var rampJob: Thread? = null
+        private val rampLock = Any()
+        @Volatile private var rampCancelled: Boolean = false
+        @Volatile private var activeController: AlarmController? = null
+        fun isRampActive(): Boolean = rampJob != null
+
+        /** Stops whichever controller is actually playing, including across instances. */
+        fun stopActiveSounds(context: Context) {
+            val current = activeController
+            if (current != null) {
+                current.stopAlarm()
+                current.stopAwakeChime()
+                current.stopAwakeMusic()
+            } else {
+                AlarmController(context).apply {
+                    stopAlarm()
+                    stopAwakeChime()
+                    stopAwakeMusic()
+                }
+            }
+        }
+    }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
-    private var rampJob: Thread? = null
+    private var mediaPlayer: MediaPlayer? = null
+    @Volatile var isMusicPlaying: Boolean = false
+    // Monotonic clock for timing decisions
+    private fun nowMs(): Long = ClockHolder.nowMs()
 
-    fun showFullScreenAlarmNotification(): Notification {
-        val fullScreenIntent = Intent(context, AlarmActivity::class.java)
+    fun showFullScreenAlarmNotification(type: String? = null): Notification {
+        val fullScreenIntent = Intent(context, AlarmActivity::class.java).apply {
+            if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
+        }
         val fullScreenPendingIntent = PendingIntent.getActivity(
             context, 0, fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(context, G7NightAlarmApp.Channels.ALARM_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("URGENT Glucose Alarm")
+            .setContentTitle("Glucose Alarm")
             .setContentText("Tap to open and dismiss")
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -49,22 +92,41 @@ class AlarmController(private val context: Context) {
             .build()
     }
 
-    fun startAlarm() {
+    fun startAlarm(type: String? = null) {
+        activeController = this
         acquireWakeLock()
         forceAlarmVolumeMax()
         startVibration()
         startAudio()
-        // show a heads-up full-screen notification to surface the activity
+        openFullScreen(type)
+    }
+
+    /**
+     * Opens the full-screen alarm. Does not change volume and does not start the sleep tone.
+     * [startAlarm] calls this after the sleep tone is already running.
+     */
+    fun openFullScreen(type: String? = null) {
+        acquireWakeLock()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification())
-        // also start the activity proactively
-        context.startActivity(
-            Intent(context, AlarmActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
-        )
+        val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
+            try { nm.canUseFullScreenIntent() } catch (_: Throwable) { false }
+        } else true
+        if (canFullScreen) {
+            nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
+        }
+        val startIntent = Intent(context, AlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
+        }
+        try {
+            context.startActivity(startIntent)
+        } catch (t: Throwable) {
+            try { android.util.Log.e("AlarmController", "Failed to start AlarmActivity", t) } catch (_: Throwable) {}
+        }
     }
 
     fun stopAlarm() {
@@ -74,6 +136,7 @@ class AlarmController(private val context: Context) {
         restoreAlarmVolume()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.cancel(ALARM_NOTIF_ID)
+        if (activeController === this) activeController = null
     }
 
     private fun acquireWakeLock() {
@@ -118,16 +181,77 @@ class AlarmController(private val context: Context) {
     private fun forceAlarmVolumeMax() {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        // Capture per-instance and global (if not already captured) restore targets
+        myPreSetAlarmVolume = cur
+        if (currentVolumeOwnerToken == 0L && globalRestoreTargetVolume == null) {
+            globalRestoreTargetVolume = cur
+        }
+        // Become the current owner
+        val tok = tokenCounter.incrementAndGet()
+        myVolumeOwnerToken = tok
+        currentVolumeOwnerToken = tok
         am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        // One-shot verification: only reapply if we're still the current owner
+        val ownerAtSet = tok
+        thread(start = true, isDaemon = true, name = "AlarmVolumeVerifyOnceMax") {
+            try {
+                Thread.sleep(400)
+                if (ownerAtSet != currentVolumeOwnerToken) return@thread
+                val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (v != max) {
+                    try {
+                        android.util.Log.w(
+                            "AlarmController",
+                            "STREAM_ALARM post-set(max) saw $v (target=$max) with owner=$ownerAtSet. Reapplying once."
+                        )
+                    } catch (_: Throwable) {}
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     private fun restoreAlarmVolume() {
-        previousAlarmVolume?.let {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.setStreamVolume(AudioManager.STREAM_ALARM, it, 0)
+        // Only the current owner may restore; stale owners must not clobber a newer session.
+        val tok = myVolumeOwnerToken
+        // Allow a cross-instance restore when caller has no token but there is an active owner:
+        // this covers receivers that construct a new AlarmController solely to perform a stop/restore
+        if (tok == 0L) {
+            if (currentVolumeOwnerToken != 0L) {
+                val target = globalRestoreTargetVolume
+                if (target != null) {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    try {
+                        am.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
+                        android.util.Log.i("AlarmController", "Restored STREAM_ALARM to $target by cross-instance request")
+                    } catch (_: Throwable) {}
+                }
+                // Clear ownership after cross-instance restore.
+                globalRestoreTargetVolume = null
+                currentVolumeOwnerToken = 0L
+            }
+            return
         }
-        previousAlarmVolume = null
+        if (tok != currentVolumeOwnerToken) {
+            try {
+                android.util.Log.i("AlarmController", "Skipping volume restore: stale owner token=$tok current=$currentVolumeOwnerToken")
+            } catch (_: Throwable) {}
+            return
+        }
+        val target = globalRestoreTargetVolume ?: myPreSetAlarmVolume
+        if (target != null) {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            try {
+                am.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
+                android.util.Log.i("AlarmController", "Restored STREAM_ALARM to $target by owner token=$tok")
+            } catch (_: Throwable) {}
+        }
+        // Clear ownership and global target after a successful (or attempted) restore by the active owner.
+        myPreSetAlarmVolume = null
+        myVolumeOwnerToken = 0L
+        globalRestoreTargetVolume = null
+        currentVolumeOwnerToken = 0L
     }
 
     private fun startAudio() {
@@ -151,33 +275,41 @@ class AlarmController(private val context: Context) {
         at.play()
         audioTrack = at
         audioThread = thread(start = true, isDaemon = true, name = "AlarmTone") {
-            // Generate harsh alternating 2.6kHz-3.4kHz square-ish tone, sweep every ~500ms
-            val out = ShortArray(bufferSize / 2)
-            var t = 0.0
-            var phase = 0.0
-            val dt = 1.0 / sampleRate
-            var f1 = 2600.0
-            var f2 = 3400.0
-            var target = f2
-            var current = f1
-            while (!Thread.currentThread().isInterrupted) {
-                // sweep
-                current += (target - current) * 0.02
-                if (abs(current - target) < 5) {
-                    target = if (target == f2) f1 else f2
+            try {
+                // Generate harsh alternating 2.6kHz-3.4kHz square-ish tone, sweep every ~500ms
+                val out = ShortArray(bufferSize / 2)
+                var t = 0.0
+                var phase = 0.0
+                val dt = 1.0 / sampleRate
+                val f1 = 2600.0
+                val f2 = 3400.0
+                var target = f2
+                var current = f1
+                while (!Thread.currentThread().isInterrupted) {
+                    // sweep
+                    current += (target - current) * 0.02
+                    if (abs(current - target) < 5) {
+                        target = if (target == f2) f1 else f2
+                    }
+                    val freq = current
+                    val step = 2 * PI * freq * dt
+                    for (i in out.indices) {
+                        phase += step
+                        val s = sin(phase)
+                        // approximate square by sign(sin)
+                        val square = sign(s)
+                        val value = (square * 0.85 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                        out[i] = value.toShort()
+                    }
+                    try {
+                        at.write(out, 0, out.size)
+                    } catch (_: Throwable) {
+                        break
+                    }
+                    t += out.size * dt
                 }
-                val freq = current
-                val step = 2 * PI * freq * dt
-                for (i in out.indices) {
-                    phase += step
-                    val s = sin(phase)
-                    // approximate square by sign(sin)
-                    val square = sign(s)
-                    val value = (square * 0.85 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-                    out[i] = value.toShort()
-                }
-                at.write(out, 0, out.size)
-                t += out.size * dt
+            } catch (_: Throwable) {
+                // ignore emulator audio issues
             }
         }
     }
@@ -192,9 +324,16 @@ class AlarmController(private val context: Context) {
         audioTrack = null
     }
 
-    companion object {
-        private const val ALARM_NOTIF_ID = 1001
+    private fun stopMedia() {
+        mediaPlayer?.let {
+            try { it.stop() } catch (_: Throwable) {}
+            try { it.release() } catch (_: Throwable) {}
+        }
+        mediaPlayer = null
+        isMusicPlaying = false
     }
+
+    
 
     // --- Awake-mode support ---
     fun previewAwakeChime(volumePercent: Int) {
@@ -230,7 +369,406 @@ class AlarmController(private val context: Context) {
         restoreAlarmVolume()
     }
 
+    // --- Music Mode (awake only) ---
+    fun startAwakeMusicFromUri(volumePercent: Int, uri: Uri) {
+        activeController = this
+        stopAwakeChime()
+        stopMedia()
+        val mp = MediaPlayer()
+        mediaPlayer = mp
+        try {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            mp.setAudioAttributes(attrs)
+            mp.setDataSource(context, uri)
+            mp.isLooping = true
+            mp.setOnPreparedListener {
+                it.start()
+                isMusicPlaying = true
+                // Apply volume once playback begins to ensure focus
+                forceAlarmVolumePercent(volumePercent)
+            }
+            mp.setOnCompletionListener { isMusicPlaying = false }
+            mp.prepareAsync()
+        } catch (_: Throwable) {
+            stopMedia()
+        }
+    }
+
+    fun startAwakeMusicLowDefault(volumePercent: Int) {
+        activeController = this
+        // Generate simple sine melody for "Swing Low, Sweet Chariot"
+        stopAwakeChime()
+        stopMedia()
+        val sampleRate = 44100
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            4096
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "SwingLowMelody") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                val dt = 1.0 / sampleRate
+                var phase = 0.0
+                // Define notes (frequency Hz, duration ms); key of G major (approx)
+                data class Note(val freq: Double, val ms: Int)
+                val quarter = 500
+                val half = 1000
+                val E4 = 329.63; val G4 = 392.00; val A4 = 440.00; val B4 = 493.88; val D5 = 587.33; val C5 = 523.25
+                val notes = listOf(
+                    // "Swing low, sweet cha-ri-ot"
+                    Note(G4, half), Note(E4, quarter), Note(G4, quarter),
+                    Note(B4, half), Note(A4, half),
+                    // "Comin' for to carry me home"
+                    Note(G4, half), Note(E4, quarter), Note(G4, quarter),
+                    Note(D5, half), Note(B4, half),
+                    // small refrain
+                    Note(A4, half), Note(G4, half),
+                    Note(E4, half), Note(G4, half),
+                )
+                var idx = 0
+                var remainingSamples = 0
+                var omega = 2 * Math.PI * notes.first().freq * dt
+                while (!Thread.currentThread().isInterrupted) {
+                    if (remainingSamples <= 0) {
+                        val n = notes[idx]
+                        omega = 2 * Math.PI * n.freq * dt
+                        remainingSamples = (n.ms / 1000.0 * sampleRate).toInt()
+                        idx = (idx + 1) % notes.size
+                    }
+                    // fill buffer or until note end
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        phase += omega
+                        val env = 0.6 // fixed amplitude
+                        val s = Math.sin(phase) * env
+                        out[i] = (s * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+                        remainingSamples--
+                        if (remainingSamples <= 0) {
+                            // next note on next sample
+                            break
+                        }
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
+    fun startAwakeMusicHighDefault(volumePercent: Int) {
+        activeController = this
+        // Original 70s-funk-inspired loop "Going Up" (~125 BPM), clavinet stabs + syncopated bass
+        stopAwakeChime()
+        stopMedia()
+        val sampleRate = 44100
+        val bpm = 125.0
+        val secPerBeat = 60.0 / bpm
+        val bars = 8 // 8 bars ~ 15.36s
+        val beatsPerBar = 4
+        val loopDurSec = bars * beatsPerBar * secPerBeat
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            8192
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "GoingUpLoop") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                var tGlobal = 0.0
+                val dt = 1.0 / sampleRate
+                // Instrument helpers
+                fun envPerc(t: Double, attack: Double, decay: Double): Double {
+                    return when {
+                        t < attack -> t / attack
+                        else -> kotlin.math.exp(-(t - attack) / decay)
+                    }
+                }
+                fun square(phase: Double) = if (kotlin.math.sin(phase) >= 0) 1.0 else -1.0
+                fun saw(phase: Double) = 2.0 * (phase / (2 * Math.PI) - kotlin.math.floor(phase / (2 * Math.PI) + 0.5))
+                // Percussion (very light): kick (60Hz), snare (noise), hat (noise short)
+                val rng = java.util.Random(0xF0F0A9BCL)
+                fun kick(tBar: Double): Double {
+                    // hits on beats 1 and 3
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val near1 = kotlin.math.min(kotlin.math.abs(beat - 0.0), kotlin.math.abs(beat - 2.0))
+                    val within = if (near1 < 0.1) 1.0 else 0.0
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.005, 0.06)
+                    val tone = kotlin.math.sin(2 * Math.PI * 60.0 * tt)
+                    return within * env * tone * 0.3
+                }
+                fun snare(tBar: Double): Double {
+                    // beats 2 and 4
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val near = kotlin.math.min(kotlin.math.abs(beat - 1.0), kotlin.math.abs(beat - 3.0))
+                    if (near < 0.05) {
+                        val tt = (beat % 1.0) * secPerBeat
+                        val env = envPerc(tt, 0.002, 0.05)
+                        val noise = (rng.nextDouble() * 2 - 1)
+                        return env * noise * 0.25
+                    }
+                    return 0.0
+                }
+                fun hihat(tBar: Double): Double {
+                    // 8th notes
+                    val beat8 = ((tBar / (secPerBeat / 2.0)) % (beatsPerBar * 2))
+                    val frac = beat8 % 1.0
+                    val env = if (frac < 0.15) kotlin.math.exp(-frac / 0.06) else 0.0
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    return env * noise * 0.1
+                }
+                // Bass pattern (E2, G2, A2, B2) syncopation per bar
+                fun bass(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val on = when {
+                        beat < 0.5 -> 82.41 // E2
+                        beat < 1.0 -> 98.00 // G2
+                        beat < 1.5 -> 110.00 // A2
+                        beat < 2.0 -> 98.00 // G2 ghost
+                        beat < 2.5 -> 123.47 // B2
+                        beat < 3.25 -> 110.00 // A2 sustained syncopation
+                        else -> 82.41 // E2 pickup
+                    }
+                    val phase = 2 * Math.PI * on * (tBar % secPerBeat)
+                    val wave = 0.6 * kotlin.math.sin(phase) + 0.4 * saw(phase)
+                    val frac = beat % 0.5
+                    val env = envPerc(frac * secPerBeat, 0.005, 0.1)
+                    return wave * env * 0.35
+                }
+                // Clavinet stabs (E4, G4, B4 syncopated 16th hits)
+                fun clav(tBar: Double): Double {
+                    val beat16 = ((tBar / (secPerBeat / 4.0)) % (beatsPerBar * 4))
+                    val which = (beat16.toInt() % 4)
+                    val freq = when (which) {
+                        0 -> 329.63 // E4
+                        1 -> 392.00 // G4
+                        2 -> 493.88 // B4
+                        else -> 392.00 // G4
+                    }
+                    val local = (beat16 % 1.0) * (secPerBeat / 4.0)
+                    val env = envPerc(local, attack = 0.003, decay = 0.06)
+                    val phase = 2 * Math.PI * freq * local
+                    val harmonics = square(phase) * 0.7 + kotlin.math.sin(phase * 2) * 0.3
+                    return harmonics * env * 0.25
+                }
+                // Seamless loop by fading the last 50ms to zero
+                val fadeTailSec = 0.05
+                while (!Thread.currentThread().isInterrupted) {
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        val tLoop = (tGlobal % loopDurSec)
+                        val mix =
+                            kick(tLoop) +
+                            snare(tLoop) +
+                            hihat(tLoop) +
+                            bass(tLoop) +
+                            clav(tLoop)
+                        // simple limiter
+                        val limited = mix.coerceIn(-1.0, 1.0)
+                        // apply tail fade for last fadeTailSec to make loop seamless
+                        val fade =
+                            if (tLoop > loopDurSec - fadeTailSec) (1.0 - (tLoop - (loopDurSec - fadeTailSec)) / fadeTailSec)
+                            else 1.0
+                        out[i] = (limited * fade * Short.MAX_VALUE).toInt().toShort()
+                        tGlobal += dt
+                        if (tGlobal >= loopDurSec) tGlobal -= loopDurSec
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
+    fun startAwakeMusicSignalDefault(volumePercent: Int) {
+        activeController = this
+        // Original 80s synth-pop loop "Lost Connection" (~130 BPM), gated drums + bright pads
+        stopAwakeChime()
+        stopMedia()
+        val sampleRate = 44100
+        val bpm = 130.0
+        val secPerBeat = 60.0 / bpm
+        val bars = 16 // ~29.5s
+        val beatsPerBar = 4
+        val loopDurSec = bars * beatsPerBar * secPerBeat
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(sampleRate)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build()
+        val bufferSize = maxOf(
+            AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT),
+            8192
+        )
+        val at = AudioTrack(attrs, format, bufferSize, AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE)
+        at.play()
+        audioTrack = at
+        // Apply volume after playback begins
+        forceAlarmVolumePercent(volumePercent)
+        isMusicPlaying = true
+        audioThread = thread(start = true, isDaemon = true, name = "LostConnectionLoop") {
+            try {
+                val out = ShortArray(bufferSize / 2)
+                var tGlobal = 0.0
+                val dt = 1.0 / sampleRate
+                val rng = java.util.Random(0x51AB12CDL)
+                fun envPerc(t: Double, attack: Double, decay: Double): Double {
+                    return when {
+                        t < attack -> t / attack
+                        else -> kotlin.math.exp(-(t - attack) / decay)
+                    }
+                }
+                fun gatePulse(t: Double, ratePerBeat: Double, duty: Double): Double {
+                    val period = secPerBeat / ratePerBeat
+                    val phase = (t % period) / period
+                    return if (phase < duty) 1.0 else 0.0
+                }
+                fun saw(phase: Double) = 2.0 * (phase / (2 * Math.PI) - kotlin.math.floor(phase / (2 * Math.PI) + 0.5))
+                // Drums (gated style)
+                fun kick(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val isHit = (kotlin.math.abs(beat - 0.0) < 0.05 || kotlin.math.abs(beat - 2.0) < 0.05)
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.003, 0.08)
+                    val tone = kotlin.math.sin(2 * Math.PI * 65.0 * tt)
+                    return (if (isHit) env * tone else 0.0) * 0.35
+                }
+                fun snare(tBar: Double): Double {
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val isHit = (kotlin.math.abs(beat - 1.0) < 0.03 || kotlin.math.abs(beat - 3.0) < 0.03)
+                    val tt = (beat % 1.0) * secPerBeat
+                    val env = envPerc(tt, 0.002, 0.07)
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    val gated = gatePulse(tBar, ratePerBeat = 2.0, duty = 0.45) // 8th-note gate
+                    return (if (isHit) env * noise else 0.0) * gated * 0.28
+                }
+                fun hat(tBar: Double): Double {
+                    val beat16 = ((tBar / (secPerBeat / 4.0)) % (beatsPerBar * 4))
+                    val frac = beat16 % 1.0
+                    val env = if (frac < 0.12) kotlin.math.exp(-frac / 0.05) else 0.0
+                    val noise = (rng.nextDouble() * 2 - 1)
+                    val gated = gatePulse(tBar, ratePerBeat = 4.0, duty = 0.4) // 16th gating
+                    return env * noise * gated * 0.12
+                }
+                // Bright detuned pad chords progression across bars (original)
+                fun pad(tBar: Double): Double {
+                    // 4-chord cycle across bars: roots (D, G, E, F) in higher register to avoid muddy mix
+                    val barIdx = ((tGlobal / (secPerBeat * beatsPerBar))).toInt() % 4
+                    val rootFreq = when (barIdx) {
+                        0 -> 293.66 // D4
+                        1 -> 392.00 // G4
+                        2 -> 329.63 // E4
+                        else -> 349.23 // F4
+                    }
+                    val fifth = rootFreq * 1.5
+                    val octave = rootFreq * 2.0
+                    val phaseRoot = 2 * Math.PI * rootFreq * (tBar % (secPerBeat * beatsPerBar))
+                    val phaseFifth = 2 * Math.PI * fifth * (tBar % (secPerBeat * beatsPerBar))
+                    val phaseOct = 2 * Math.PI * octave * (tBar % (secPerBeat * beatsPerBar))
+                    val detune = 0.995
+                    val padWave =
+                        0.5 * saw(phaseRoot) + 0.5 * saw(phaseRoot * detune) +
+                        0.4 * saw(phaseFifth) + 0.3 * saw(phaseOct)
+                    // soft attack/decay within bar and gated amplitude
+                    val beat = (tBar / secPerBeat) % beatsPerBar
+                    val within = (beat % 1.0) * secPerBeat
+                    val env = envPerc(within, 0.02, 0.2)
+                    val gated = gatePulse(tBar, ratePerBeat = 2.0, duty = 0.5)
+                    return padWave * env * gated * 0.25
+                }
+                // Seamless loop by fading the last 70ms
+                val fadeTailSec = 0.07
+                while (!Thread.currentThread().isInterrupted) {
+                    val samples = out.size
+                    for (i in 0 until samples) {
+                        val tLoop = (tGlobal % loopDurSec)
+                        val mix =
+                            kick(tLoop) +
+                            snare(tLoop) +
+                            hat(tLoop) +
+                            pad(tLoop)
+                        val limited = mix.coerceIn(-1.0, 1.0)
+                        val fade =
+                            if (tLoop > loopDurSec - fadeTailSec) (1.0 - (tLoop - (loopDurSec - fadeTailSec)) / fadeTailSec)
+                            else 1.0
+                        out[i] = (limited * fade * Short.MAX_VALUE).toInt().toShort()
+                        tGlobal += dt
+                        if (tGlobal >= loopDurSec) tGlobal -= loopDurSec
+                    }
+                    at.write(out, 0, samples)
+                }
+            } catch (_: Throwable) {
+            } finally {
+                isMusicPlaying = false
+            }
+        }
+    }
+
+    fun startAwakeMusicRampLow(volumePercentStart: Int, urgent: Boolean, contentUri: Uri?) {
+        // Start music (URI if provided, else default melody), then ramp STREAM_ALARM volume to max over 5 min
+        val startPct = if (urgent) maxOf(volumePercentStart, 80) else volumePercentStart
+        if (contentUri != null) {
+            startAwakeMusicFromUri(startPct, contentUri)
+        } else {
+            startAwakeMusicLowDefault(startPct)
+        }
+        startVolumeRamp(startPct, 100, totalMs = 5 * 60 * 1000) {
+            // at max: switch to full screech
+            stopAwakeMusic()
+            startAlarm()
+        }
+    }
+
+    fun stopAwakeMusic() {
+        stopMedia()
+        stopAudio()
+        stopVibration()
+        stopRamp()
+        restoreAlarmVolume()
+    }
+
     private fun playAwakeChime(volumePercent: Int, durationMs: Int, loop: Boolean, freqHz: Double) {
+        activeController = this
         forceAlarmVolumePercent(volumePercent)
         // generate a soft bell-like sine with envelope
         stopAudio()
@@ -269,16 +807,20 @@ class AlarmController(private val context: Context) {
                     out[i] = (s * 0.8 * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
                     playedMs += (1000.0 / sampleRate).toInt()
                 }
-                at.write(out, 0, samples)
-                return true
+                return try {
+                    at.write(out, 0, samples)
+                    true
+                } catch (_: Throwable) {
+                    false
+                }
             }
             if (loop) {
                 while (!Thread.currentThread().isInterrupted) {
                     if (!fillBuffer()) break
                 }
             } else {
-                val endTime = System.currentTimeMillis() + durationMs
-                while (!Thread.currentThread().isInterrupted && System.currentTimeMillis() < endTime) {
+                val endTime = nowMs() + durationMs
+                while (!Thread.currentThread().isInterrupted && nowMs() < endTime) {
                     if (!fillBuffer()) break
                 }
                 // auto-restore volume after preview
@@ -290,33 +832,104 @@ class AlarmController(private val context: Context) {
     private fun forceAlarmVolumePercent(volumePercent: Int) {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-        previousAlarmVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        // Capture per-instance and (if no owner) global restore targets
+        myPreSetAlarmVolume = cur
+        if (currentVolumeOwnerToken == 0L && globalRestoreTargetVolume == null) {
+            globalRestoreTargetVolume = cur
+        }
+        // Become the current owner
+        val tok = tokenCounter.incrementAndGet()
+        myVolumeOwnerToken = tok
+        currentVolumeOwnerToken = tok
         val set = (max * (volumePercent / 100.0)).toInt().coerceIn(1, max)
-        am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+        // Best-effort to ensure the volume actually takes effect on newer Android
+        // where async or throttling may delay application.
+        var attempts = 0
+        while (attempts < 20) {
+            am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+            val now = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (now == set) break
+            try {
+                android.util.Log.w(
+                    "AlarmController",
+                    "STREAM_ALARM volume set did not stick on attempt ${attempts + 1}: now=$now target=$set; " +
+                        "possible causes: DND policy, delayed audio focus, vendor throttling. Retrying shortly."
+                )
+            } catch (_: Throwable) {}
+            try { Thread.sleep(150) } catch (_: Throwable) {}
+            attempts++
+        }
+        try {
+            val finalVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            android.util.Log.i("AlarmController", "STREAM_ALARM set to $finalVol (target=$set) after $attempts attempt(s)")
+        } catch (_: Throwable) {}
+        // Detect late clobber (e.g., a stale restore racing shortly after we set) and reapply once.
+        val ownerAtSet = myVolumeOwnerToken
+        thread(start = true, isDaemon = true, name = "AlarmVolumeVerifyOnce") {
+            try {
+                Thread.sleep(400)
+                if (ownerAtSet != currentVolumeOwnerToken) return@thread
+                val v = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (v != set) {
+                    try {
+                        android.util.Log.w(
+                            "AlarmController",
+                            "STREAM_ALARM post-set verification saw $v (target=$set). Likely clobbered by a delayed restore or policy. Reapplying once."
+                        )
+                    } catch (_: Throwable) {}
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                }
+                // Additional guarded rechecks to fight late clobbers on API 34 emulators
+                var i = 0
+                while (i < 4) {
+                    Thread.sleep(300)
+                    if (ownerAtSet != currentVolumeOwnerToken) break
+                    val vv = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                    if (vv != set) {
+                        try { android.util.Log.w("AlarmController", "STREAM_ALARM recheck[$i] saw $vv; reapplying") } catch (_: Throwable) {}
+                        am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
+                    }
+                    i++
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     private fun startVolumeRamp(startPercent: Int, endPercent: Int, totalMs: Int, onComplete: () -> Unit) {
         stopRamp()
-        rampJob = thread(start = true, isDaemon = true, name = "VolumeRamp") {
+        synchronized(rampLock) { rampCancelled = false }
+        val job = thread(start = true, isDaemon = true, name = "VolumeRamp") {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val start = System.currentTimeMillis()
+            val start = nowMs()
+            var localInterrupted = false
             while (true) {
-                val elapsed = System.currentTimeMillis() - start
+                val elapsed = nowMs() - start
                 val frac = (elapsed.toDouble() / totalMs).coerceIn(0.0, 1.0)
                 val curPercent = startPercent + ((endPercent - startPercent) * frac).toInt()
                 val set = (max * (curPercent / 100.0)).toInt().coerceIn(1, max)
+                try {
+                    android.util.Log.d("AlarmController", "VolumeRamp elapsed=${elapsed}ms frac=${"%.2f".format(frac)} cur%=$curPercent setVol=$set (max=$max)")
+                } catch (_: Throwable) {}
                 am.setStreamVolume(AudioManager.STREAM_ALARM, set, 0)
                 if (frac >= 1.0) break
-                try { Thread.sleep(500) } catch (_: InterruptedException) { break }
+                try { Thread.sleep(500) } catch (_: InterruptedException) {
+                    localInterrupted = true
+                    break
+                }
             }
-            if (!Thread.currentThread().isInterrupted) onComplete()
+            if (!localInterrupted && !rampCancelled) onComplete()
         }
+        synchronized(rampLock) { rampJob = job }
     }
 
     private fun stopRamp() {
-        rampJob?.interrupt()
-        rampJob = null
+        synchronized(rampLock) {
+            rampCancelled = true
+            rampJob?.interrupt()
+            rampJob = null
+        }
     }
 }
 
