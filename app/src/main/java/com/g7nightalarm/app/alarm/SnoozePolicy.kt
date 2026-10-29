@@ -60,7 +60,9 @@ object SnoozePolicy {
 
     /**
      * A worse event during snooze fires immediately and cancels the snooze.
-     * - any urgent reading (at or below the urgent threshold, default 70)
+     * The reading that was snoozed does not count as a new event, so an urgent
+     * low can be snoozed and stay quiet until it gets worse.
+     * - a reading at or below the urgent threshold, when the snoozed alarm was not already urgent
      * - a reading below 70 when the snoozed alarm was the 70–80 low band
      * - a further drop of 10 mg/dL or more from the snoozed value
      * - signal lost
@@ -73,7 +75,9 @@ object SnoozePolicy {
         urgentLowThreshold: Double = 70.0
     ): Boolean {
         if (signalLost) return true
-        if (currentMgdl != null && currentMgdl <= urgentLowThreshold) return true
+        val alreadyUrgent = snoozedType == AlarmActionReceiver.TYPE_URGENT ||
+            (snoozedMgdl != null && snoozedMgdl <= urgentLowThreshold)
+        if (!alreadyUrgent && currentMgdl != null && currentMgdl <= urgentLowThreshold) return true
         val wasLowBand = snoozedType == AlarmActionReceiver.TYPE_LOW_WARN ||
             (snoozedMgdl != null && snoozedMgdl > urgentLowThreshold && snoozedMgdl <= 80.0 &&
                 snoozedType == AlarmActionReceiver.TYPE_LOW)

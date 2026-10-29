@@ -91,6 +91,19 @@ class SnoozePolicyTest {
             SnoozePolicy.DuringSnooze.StayQuiet,
             SnoozePolicy.duringSnooze(t0, until, AlarmActionReceiver.TYPE_LOW_WARN, 76.0, 78.0, false)
         )
+        // The urgent reading Joe just snoozed must not cancel that snooze.
+        assertEquals(
+            SnoozePolicy.DuringSnooze.StayQuiet,
+            SnoozePolicy.duringSnooze(t0, until, AlarmActionReceiver.TYPE_URGENT, 58.0, 58.0, false)
+        )
+        assertEquals(
+            SnoozePolicy.DuringSnooze.StayQuiet,
+            SnoozePolicy.duringSnooze(t0, until, AlarmActionReceiver.TYPE_URGENT, 58.0, 52.0, false)
+        )
+        assertEquals(
+            SnoozePolicy.DuringSnooze.BreakNow,
+            SnoozePolicy.duringSnooze(t0, until, AlarmActionReceiver.TYPE_URGENT, 58.0, 48.0, false)
+        )
     }
 
     @Test
