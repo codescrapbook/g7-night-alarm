@@ -276,6 +276,7 @@ fun AlarmContent(
                     .padding(top = 8.dp)
                     .fillMaxWidth()
                     .semantics { contentDescription = trend.contentDescription() }
+                    .testTag("alarmTrendLabel")
             )
             if (agePhrase.isNotBlank()) {
                 // Build an annotated single-line age string with bold number at least 40sp
@@ -339,6 +340,7 @@ fun AlarmContent(
         // Large, bold instruction placed directly above the action control
         val instructionStyle = MaterialTheme.typography.headlineMedium.copy(
             fontSize = 28.sp,
+            lineHeight = 36.sp,
             fontWeight = FontWeight.Bold,
             color = subtitleColor,
             fontFamily = FontFamily.Default
@@ -346,17 +348,26 @@ fun AlarmContent(
         val dismissInstruction = when {
             checkInTap -> "Tap I'm OK"
             dismissLabel == "DISMISS" -> "Tap to dismiss"
-            cfg.screenWidthDp < 500 -> "Press and hold\nto dismiss"
-            else -> "Press and hold to dismiss"
+            else -> "Hold to dismiss"
         }
         Text(
-            text = "Tap Snooze to be woken again\n$dismissInstruction",
+            text = "Tap Snooze to wake",
             style = instructionStyle,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(top = 8.dp)
+                .fillMaxWidth()
                 .semantics { fontSizeSp = instructionStyle.fontSize.value }
                 .testTag("alarmInstruction")
+        )
+        Text(
+            text = dismissInstruction,
+            style = instructionStyle,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { fontSizeSp = instructionStyle.fontSize.value }
+                .testTag("alarmDismissInstruction")
         )
         val sideBySide = cfg.screenWidthDp >= 700
         if (sideBySide) {

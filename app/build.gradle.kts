@@ -178,6 +178,7 @@ tasks.withType<Test>().configureEach {
             excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmAccessibilityTextSizeTest")
             excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmTrendInlineAlignmentTest")
             excludeTestsMatching("com.g7nightalarm.app.alarm.AlarmReadingSizeTest")
+            excludeTestsMatching("com.g7nightalarm.app.alarm.LayoutTextBoundsTest")
         }
     }
 }

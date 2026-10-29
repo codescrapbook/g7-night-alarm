@@ -57,10 +57,13 @@ class AlarmAccessibilityTextSizeTest {
             }
         }
         val instNode = composeRule.onNodeWithTag("alarmInstruction").fetchSemanticsNode()
+        val dismissNode = composeRule.onNodeWithTag("alarmDismissInstruction").fetchSemanticsNode()
         val ageNode = composeRule.onNodeWithTag("alarmAge").fetchSemanticsNode()
         val instSp = try { instNode.config[FontSizeSpKey] } catch (_: Throwable) { 0f }
+        val dismissSp = try { dismissNode.config[FontSizeSpKey] } catch (_: Throwable) { 0f }
         val ageSp = try { ageNode.config[FontSizeSpKey] } catch (_: Throwable) { 0f }
         assertTrue("Instruction should be at least 28sp, was $instSp", instSp >= 28f)
+        assertTrue("Dismiss instruction should be at least 28sp, was $dismissSp", dismissSp >= 28f)
         assertTrue("Age line should be at least 32sp, was $ageSp", ageSp >= 32f)
     }
 }

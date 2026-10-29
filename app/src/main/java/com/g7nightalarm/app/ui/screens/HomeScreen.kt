@@ -29,11 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
@@ -358,28 +355,21 @@ private fun SnoozeBanner(timeText: String, onCancel: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = buildAnnotatedString {
-                withStyle(
-                    SpanStyle(
-                        color = Color.Black,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Default
-                    )
-                ) {
-                    append("Snoozed – waking you at ")
-                }
-                withStyle(
-                    SpanStyle(
-                        color = Color.Black,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = FontFamily.Default
-                    )
-                ) {
-                    append(timeText)
-                }
-            },
+            text = "Snoozed – waking you at",
+            color = Color.Black,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp,
+            lineHeight = 32.sp,
+            modifier = Modifier.testTag("snoozeBannerLabel")
+        )
+        Text(
+            text = timeText,
+            color = Color.Black,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            fontSize = 40.sp,
+            lineHeight = 48.sp,
             modifier = Modifier.testTag("snoozeWakeTime")
         )
         Button(
