@@ -47,7 +47,24 @@ class AlarmController(private val context: Context) {
         @Volatile private var rampJob: Thread? = null
         private val rampLock = Any()
         @Volatile private var rampCancelled: Boolean = false
+        @Volatile private var activeController: AlarmController? = null
         fun isRampActive(): Boolean = rampJob != null
+
+        /** Stops whichever controller is actually playing, including across instances. */
+        fun stopActiveSounds(context: Context) {
+            val current = activeController
+            if (current != null) {
+                current.stopAlarm()
+                current.stopAwakeChime()
+                current.stopAwakeMusic()
+            } else {
+                AlarmController(context).apply {
+                    stopAlarm()
+                    stopAwakeChime()
+                    stopAwakeMusic()
+                }
+            }
+        }
     }
     private var wakeLock: PowerManager.WakeLock? = null
     private var vibrator: Vibrator? = null
@@ -76,11 +93,20 @@ class AlarmController(private val context: Context) {
     }
 
     fun startAlarm(type: String? = null) {
+        activeController = this
         acquireWakeLock()
         forceAlarmVolumeMax()
         startVibration()
         startAudio()
-        // Prefer full-screen notification when allowed
+        openFullScreen(type)
+    }
+
+    /**
+     * Opens the full-screen alarm. Does not change volume and does not start the sleep tone.
+     * [startAlarm] calls this after the sleep tone is already running.
+     */
+    fun openFullScreen(type: String? = null) {
+        acquireWakeLock()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val canFullScreen = if (Build.VERSION.SDK_INT >= 34) {
             try { nm.canUseFullScreenIntent() } catch (_: Throwable) { false }
@@ -88,7 +114,6 @@ class AlarmController(private val context: Context) {
         if (canFullScreen) {
             nm.notify(ALARM_NOTIF_ID, showFullScreenAlarmNotification(type))
         }
-        // Always proactively start the activity as a safety net (foreground service context)
         val startIntent = Intent(context, AlarmActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -97,7 +122,6 @@ class AlarmController(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             if (type != null) putExtra(com.g7nightalarm.app.receiver.AlarmActionReceiver.EXTRA_TYPE, type)
         }
-        // Start synchronously from the foreground service context; log if it fails
         try {
             context.startActivity(startIntent)
         } catch (t: Throwable) {
@@ -112,6 +136,7 @@ class AlarmController(private val context: Context) {
         restoreAlarmVolume()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.cancel(ALARM_NOTIF_ID)
+        if (activeController === this) activeController = null
     }
 
     private fun acquireWakeLock() {
@@ -346,6 +371,7 @@ class AlarmController(private val context: Context) {
 
     // --- Music Mode (awake only) ---
     fun startAwakeMusicFromUri(volumePercent: Int, uri: Uri) {
+        activeController = this
         stopAwakeChime()
         stopMedia()
         val mp = MediaPlayer()
@@ -372,6 +398,7 @@ class AlarmController(private val context: Context) {
     }
 
     fun startAwakeMusicLowDefault(volumePercent: Int) {
+        activeController = this
         // Generate simple sine melody for "Swing Low, Sweet Chariot"
         stopAwakeChime()
         stopMedia()
@@ -449,6 +476,7 @@ class AlarmController(private val context: Context) {
     }
 
     fun startAwakeMusicHighDefault(volumePercent: Int) {
+        activeController = this
         // Original 70s-funk-inspired loop "Going Up" (~125 BPM), clavinet stabs + syncopated bass
         stopAwakeChime()
         stopMedia()
@@ -589,6 +617,7 @@ class AlarmController(private val context: Context) {
     }
 
     fun startAwakeMusicSignalDefault(volumePercent: Int) {
+        activeController = this
         // Original 80s synth-pop loop "Lost Connection" (~130 BPM), gated drums + bright pads
         stopAwakeChime()
         stopMedia()
@@ -739,6 +768,7 @@ class AlarmController(private val context: Context) {
     }
 
     private fun playAwakeChime(volumePercent: Int, durationMs: Int, loop: Boolean, freqHz: Double) {
+        activeController = this
         forceAlarmVolumePercent(volumePercent)
         // generate a soft bell-like sine with envelope
         stopAudio()

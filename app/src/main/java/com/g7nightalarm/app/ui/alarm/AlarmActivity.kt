@@ -10,10 +10,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,6 +50,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
@@ -62,7 +65,9 @@ import android.graphics.Typeface
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import com.g7nightalarm.app.ui.a11y.FontSizeSpKey
 import com.g7nightalarm.app.ui.a11y.fontSizeSp
@@ -76,6 +81,11 @@ import com.g7nightalarm.app.ui.trend.InlineTrendReading
 import com.g7nightalarm.app.ui.trend.contentDescription
 import com.g7nightalarm.app.ui.trend.deriveTrend
 import com.g7nightalarm.app.ui.trend.label
+import com.g7nightalarm.app.alarm.SnoozeController
+import com.g7nightalarm.app.alarm.SnoozePolicy
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class AlarmActivity : ComponentActivity() {
     private lateinit var alarmController: AlarmController
@@ -103,7 +113,16 @@ class AlarmActivity : ComponentActivity() {
                         // notify service to resume voice
                         sendBroadcast(android.content.Intent(com.g7nightalarm.app.service.MonitorService.ACTION_ALARM_STOPPED))
                         finish()
-                    })
+                    },
+                        onSnooze = {
+                            lifecycleScope.launch {
+                                val minutes = SettingsRepository(this@AlarmActivity).flow.first().snoozeLengthMinutes
+                                val mgdl = AppDatabase.get(this@AlarmActivity).glucoseDao().latest()?.mgdl
+                                SnoozeController.arm(this@AlarmActivity, type ?: "", mgdl, minutes)
+                                finish()
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -114,9 +133,11 @@ class AlarmActivity : ComponentActivity() {
 fun AlarmContent(
     type: String?,
     onDismiss: () -> Unit,
+    onSnooze: () -> Unit = {},
     animationsEnabled: Boolean = true,
     previewLatest: GlucoseReading? = null,
     previewUnits: Units? = null,
+    previewSnoozeMinutes: Int? = null,
     onReadingLayout: (TextLayoutResult) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -161,6 +182,7 @@ fun AlarmContent(
         AlarmActionReceiver.TYPE_HIGH -> Quad(Color(0xFFFFA000), Color(0xFFFF8F00), Color.Black, Color.Black)
         AlarmActionReceiver.TYPE_SIGNAL -> Quad(Color(0xFF37474F), Color(0xFF455A64), Color.White, Color.White)
         AlarmActionReceiver.TYPE_LOW_WARN -> Quad(Color(0xFF0D47A1), Color(0xFF1976D2), Color.White, Color.White)
+        AlarmActionReceiver.TYPE_CHECKIN -> Quad(Color(0xFF1A237E), Color(0xFF283593), Color.White, Color.White)
         else -> Quad(Color(0xFF8E0000), Color(0xFFB71C1C), Color.White, Color.White)
     }
     val bg = if (animationsEnabled) androidx.compose.ui.graphics.lerp(cA, cB, flashing.value) else cB
@@ -172,13 +194,18 @@ fun AlarmContent(
         AlarmActionReceiver.TYPE_SIGNAL -> Triple("SIGNAL LOST", "Press and hold to dismiss", "DISMISS")
         AlarmActionReceiver.TYPE_LOW -> Triple("LOW ALARM", "Press and hold to dismiss", "HOLD")
         AlarmActionReceiver.TYPE_URGENT -> Triple("URGENT ALARM", "Press and hold to dismiss", "HOLD")
+        AlarmActionReceiver.TYPE_CHECKIN -> Triple("CHECK-IN", "Tap I'm OK", "I'm OK")
         else -> Triple("URGENT ALARM", "Press and hold to dismiss", "HOLD")
     }
+    val snoozeLabel = SnoozePolicy.buttonLabel(previewSnoozeMinutes ?: s.snoozeLengthMinutes)
+    val checkInTap = type == AlarmActionReceiver.TYPE_CHECKIN
+    val fontScale = LocalDensity.current.fontScale
+    val screenPad = if (fontScale >= 1.5f) 16.dp else 48.dp
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(bg)
-            .padding(48.dp),
+            .padding(screenPad),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -316,11 +343,14 @@ fun AlarmContent(
             color = subtitleColor,
             fontFamily = FontFamily.Default
         )
+        val dismissInstruction = when {
+            checkInTap -> "Tap I'm OK"
+            dismissLabel == "DISMISS" -> "Tap to dismiss"
+            cfg.screenWidthDp < 500 -> "Press and hold\nto dismiss"
+            else -> "Press and hold to dismiss"
+        }
         Text(
-            text = when (dismissLabel) {
-                "DISMISS" -> "Tap to dismiss"
-                else -> if (cfg.screenWidthDp < 500) "Press and hold\nto dismiss" else "Press and hold to dismiss"
-            },
+            text = "Tap Snooze to be woken again\n$dismissInstruction",
             style = instructionStyle,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -328,36 +358,118 @@ fun AlarmContent(
                 .semantics { fontSizeSp = instructionStyle.fontSize.value }
                 .testTag("alarmInstruction")
         )
-        Box(
-            modifier = Modifier
-                .padding(top = 48.dp)
-                .sizeIn(minWidth = 260.dp, minHeight = 120.dp)
-                .clip(RoundedCornerShape(60.dp))
-                .background(Color(0xFFE5E5E5))
-                .padding(horizontal = 48.dp, vertical = 24.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            holding.value = true
-                            val start = System.currentTimeMillis()
-                            tryAwaitRelease()
-                            val dur = System.currentTimeMillis() - start
-                            holding.value = false
-                            if (dur >= holdMs) {
-                                onDismiss()
-                            }
-                        }
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                dismissLabel,
-                style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 32.sp),
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.Black
+        val sideBySide = cfg.screenWidthDp >= 700
+        if (sideBySide) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SnoozeButton(snoozeLabel, onSnooze, Modifier.weight(1f))
+                DismissButton(
+                    label = dismissLabel,
+                    tapToDismiss = checkInTap,
+                    holding = holding,
+                    holdMs = holdMs,
+                    onDismiss = onDismiss,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SnoozeButton(snoozeLabel, onSnooze, Modifier.fillMaxWidth())
+                DismissButton(
+                    label = dismissLabel,
+                    tapToDismiss = checkInTap,
+                    holding = holding,
+                    holdMs = holdMs,
+                    onDismiss = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnoozeButton(label: String, onSnooze: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .sizeIn(minWidth = 260.dp, minHeight = 120.dp)
+            .clip(RoundedCornerShape(60.dp))
+            .background(Color.White)
+            .testTag("snoozeButton")
+            .semantics {
+                role = Role.Button
+                contentDescription = label
+            }
+            .clickable(onClick = onSnooze)
+            .padding(horizontal = 24.dp, vertical = if (LocalDensity.current.fontScale >= 1.5f) 8.dp else 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 32.sp),
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.Black,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
+    }
+}
+
+@Composable
+private fun DismissButton(
+    label: String,
+    tapToDismiss: Boolean,
+    holding: androidx.compose.runtime.MutableState<Boolean>,
+    holdMs: Long,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val gesture = if (tapToDismiss) {
+        Modifier.clickable(onClick = onDismiss)
+    } else {
+        Modifier.pointerInput(Unit) {
+            detectTapGestures(
+                onPress = {
+                    holding.value = true
+                    val start = System.currentTimeMillis()
+                    tryAwaitRelease()
+                    val dur = System.currentTimeMillis() - start
+                    holding.value = false
+                    if (dur >= holdMs) {
+                        onDismiss()
+                    }
+                }
             )
         }
+    }
+    Box(
+        modifier = modifier
+            .sizeIn(minWidth = 260.dp, minHeight = 120.dp)
+            .clip(RoundedCornerShape(60.dp))
+            .background(Color(0xFFE5E5E5))
+            .then(gesture)
+            .padding(horizontal = 24.dp, vertical = if (LocalDensity.current.fontScale >= 1.5f) 8.dp else 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.displayMedium.copy(fontFamily = FontFamily.Default, fontSize = 32.sp),
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.Black,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
     }
 }
 

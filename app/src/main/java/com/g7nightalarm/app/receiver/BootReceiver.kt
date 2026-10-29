@@ -4,8 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.g7nightalarm.app.schedule.SleepScheduler
+import com.g7nightalarm.app.schedule.SnoozeScheduler
 import com.g7nightalarm.app.settings.SettingsRepository
 import com.g7nightalarm.app.service.MonitorService
+import com.g7nightalarm.app.time.ClockHolder
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -23,6 +25,7 @@ class BootReceiver : BroadcastReceiver() {
                 GlobalScope.launch {
                     val s = settings.flow.first()
                     SleepScheduler.schedule(context, s.autoSleepHour, s.autoSleepMinute)
+                    SnoozeScheduler.rescheduleIfPending(context, ClockHolder.nowWallMs(), s.snoozeUntilWallMs)
                 }
             }
         }

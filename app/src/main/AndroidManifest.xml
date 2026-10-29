@@ -88,6 +88,16 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.SnoozeReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.g7nightalarm.SNOOZE_REARM" />
+                <action android:name="com.g7nightalarm.SNOOZE_CHECK" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>
 

@@ -43,6 +43,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
         const val TYPE_LOW = "low"
         const val TYPE_HIGH = "high"
         const val TYPE_SIGNAL = "signal"
+        const val TYPE_CHECKIN = "checkin"
     }
 }
 

@@ -71,6 +71,12 @@ class RoborazziScreenshotsTest {
     @Before
     fun onlyInDebug() {
         assumeTrue(com.g7nightalarm.app.BuildConfig.DEBUG)
+        runBlocking {
+            SettingsRepository(ApplicationProvider.getApplicationContext()).update { prefs ->
+                prefs[SettingsKeys.snoozeLengthMinutes] = 10
+                prefs[SettingsKeys.snoozeUntilWallMs] = 0L
+            }
+        }
     }
     private val context: Context = ApplicationProvider.getApplicationContext()
     // Write under app/build when tests run from repo root; otherwise write under module build/
@@ -590,6 +596,8 @@ class RoborazziScreenshotsTest {
         composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("HOLD").assertExists()
+        composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
+        composeRule.onNodeWithText("Tap Snooze", substring = true).assertExists()
         // Render via activity using previewLatest to ensure deterministic text
         renderAndSavePngActivity("alarm_urgent.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
@@ -657,6 +665,7 @@ class RoborazziScreenshotsTest {
         composeRule.onNodeWithText("Rising slowly", substring = true).assertExists()
         composeRule.onNodeWithText("ago", substring = true).assertExists()
         composeRule.onNodeWithText("DISMISS").assertExists()
+        composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
         renderAndSavePngActivity("alarm_high.png") {
             Box(Modifier.size(1280.dp, 800.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -746,6 +755,8 @@ class RoborazziScreenshotsTest {
             try {
                 composeRule.onNodeWithTag("toggleRowVoice").assertExists()
                 composeRule.onNodeWithTag("toggleRowSafety").assertExists()
+                composeRule.onNodeWithTag("snoozeLengthLabel").assertExists()
+                composeRule.onNodeWithText("10 min").assertExists()
                 true
             } catch (_: AssertionError) { false }
         }
@@ -775,6 +786,8 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("58 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
+            composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
+            composeRule.onNodeWithText("HOLD").assertExists()
         renderAndSavePngActivity("phone_alarm_urgent.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -839,6 +852,8 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("76 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("Falling slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
+            composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
+            composeRule.onNodeWithText("HOLD").assertExists()
         renderAndSavePngActivity("phone_alarm_low.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -871,6 +886,8 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("260 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("Rising slowly", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
+            composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
+            composeRule.onNodeWithText("DISMISS").assertExists()
         renderAndSavePngActivity("phone_alarm_high.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -902,6 +919,7 @@ class RoborazziScreenshotsTest {
             composeRule.onNodeWithText("120 mg/dL", substring = true).assertExists()
             composeRule.onNodeWithText("Steady", substring = true).assertExists()
             composeRule.onNodeWithText("ago", substring = true).assertExists()
+            composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
         renderAndSavePngActivity("phone_alarm_signal_lost.png") {
             Box(Modifier.size(411.dp, 891.dp)) {
                 com.g7nightalarm.app.ui.alarm.AlarmContent(
@@ -913,6 +931,146 @@ class RoborazziScreenshotsTest {
                 )
             }
         }
+        }
+    }
+
+    @Test
+    fun alarm_low_screen() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 76.0, slopeMgdlPerMin = -0.8, slopeName = "↘", source = "test")
+        renderAndSavePngActivity("alarm_low.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_LOW,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    @Test
+    fun alarm_checkin_screen() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 110.0, slopeMgdlPerMin = 0.2, slopeName = "→", source = "test")
+        composeRule.setContent {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    com.g7nightalarm.app.ui.alarm.AlarmContent(
+                        type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_CHECKIN,
+                        onDismiss = {},
+                        animationsEnabled = false,
+                        previewLatest = latest,
+                        previewUnits = Units.MG_DL
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithText("CHECK-IN").assertExists()
+        composeRule.onNodeWithText("110 mg/dL", substring = true).assertExists()
+        composeRule.onNodeWithText("SNOOZE", substring = true).assertExists()
+        composeRule.onNodeWithText("I'm OK").assertExists()
+        renderAndSavePngActivity("alarm_checkin.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_CHECKIN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_alarm_checkin_port() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now - 60_000L, mgdl = 110.0, slopeMgdlPerMin = 0.2, slopeName = "→", source = "test")
+        renderAndSavePngActivity("phone_alarm_checkin.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                com.g7nightalarm.app.ui.alarm.AlarmContent(
+                    type = com.g7nightalarm.app.receiver.AlarmActionReceiver.TYPE_CHECKIN,
+                    onDismiss = {},
+                    animationsEnabled = false,
+                    previewLatest = latest,
+                    previewUnits = Units.MG_DL
+                )
+            }
+        }
+    }
+
+    @Test
+    fun home_snoozed_banner() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 110.0, slopeMgdlPerMin = 0.2, slopeName = "→", source = "test")
+        val hist = buildHistory(3, now, 110.0, "→")
+        composeRule.setContent {
+            G7Theme {
+                Box(Modifier.size(1280.dp, 800.dp)) {
+                    HomeScreen(
+                        onOpenSettings = {},
+                        previewLatest = latest,
+                        previewHistory = hist,
+                        previewIsSleep = true,
+                        previewSnoozeTimeText = "3:42 AM"
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithText("3:42 AM", substring = true).assertExists()
+        composeRule.onNodeWithText("Cancel snooze").assertExists()
+        renderAndSavePngActivity("home_snoozed.png") {
+            Box(Modifier.size(1280.dp, 800.dp)) {
+                HomeScreen(
+                    onOpenSettings = {},
+                    previewLatest = latest,
+                    previewHistory = hist,
+                    previewIsSleep = true,
+                    previewSnoozeTimeText = "3:42 AM"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun phone_home_snoozed_port() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 110.0, slopeMgdlPerMin = 0.2, slopeName = "→", source = "test")
+        val hist = buildHistory(3, now, 110.0, "→")
+        renderAndSavePngActivity("phone_home_snoozed.png") {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                HomeScreen(
+                    onOpenSettings = {},
+                    previewLatest = latest,
+                    previewHistory = hist,
+                    previewIsSleep = true,
+                    previewSnoozeTimeText = "3:42 AM"
+                )
+            }
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp-port-xxhdpi")
+    fun fs2_phone_home_snoozed() {
+        val now = System.currentTimeMillis()
+        val latest = GlucoseReading(timestamp = now, mgdl = 110.0, slopeMgdlPerMin = 0.2, slopeName = "→", source = "test")
+        val hist = buildHistory(3, now, 110.0, "→")
+        renderAndSavePngActivityFontScale("fs2_phone_home_snoozed.png", 2f) {
+            Box(Modifier.size(411.dp, 891.dp)) {
+                HomeScreen(
+                    onOpenSettings = {},
+                    previewLatest = latest,
+                    previewHistory = hist,
+                    previewIsSleep = true,
+                    previewSnoozeTimeText = "3:42 AM"
+                )
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -29,8 +30,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.g7nightalarm.app.alarm.AlarmController
@@ -137,6 +144,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 x += stitchLen + gap
             }
         }
+        SnoozeLengthControl(
+            minutes = state.snoozeLengthMinutes,
+            narrow = LocalConfiguration.current.screenWidthDp < 500,
+            onSelect = { minutes ->
+                scope.launch { repo.update { it[SettingsKeys.snoozeLengthMinutes] = minutes } }
+            }
+        )
         val tfColors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = MaterialTheme.colorScheme.onBackground,
             unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
@@ -405,6 +419,79 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         Text("Offline voice: enabling Voice control downloads the small English model automatically.", color = secondaryColor)
         Button(onClick = { alarm.startAlarm() }) { Text("Test alarm") }
+    }
+}
+
+@Composable
+private fun SnoozeLengthControl(
+    minutes: Int,
+    narrow: Boolean,
+    onSelect: (Int) -> Unit
+) {
+    val labelColor = MaterialTheme.colorScheme.onBackground
+    Text(
+        "Snooze length",
+        color = labelColor,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        modifier = Modifier.testTag("snoozeLengthLabel")
+    )
+    Text(
+        "Wake you again after",
+        color = labelColor,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp
+    )
+    val choices = com.g7nightalarm.app.alarm.SnoozePolicy.lengthChoices
+    if (narrow) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SnoozeLengthButton(choices[0], minutes, Modifier.weight(1f), onSelect)
+                SnoozeLengthButton(choices[1], minutes, Modifier.weight(1f), onSelect)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SnoozeLengthButton(choices[2], minutes, Modifier.weight(1f), onSelect)
+                SnoozeLengthButton(choices[3], minutes, Modifier.weight(1f), onSelect)
+            }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            choices.forEach { choice ->
+                SnoozeLengthButton(choice, minutes, Modifier.weight(1f), onSelect)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnoozeLengthButton(
+    choice: Int,
+    selectedMinutes: Int,
+    modifier: Modifier,
+    onSelect: (Int) -> Unit
+) {
+    val selected = choice == selectedMinutes
+    val bg = if (selected) Color.White else Color(0xFF1B1B1B)
+    val fg = if (selected) Color.Black else Color.White
+    Button(
+        onClick = { onSelect(choice) },
+        modifier = modifier
+            .heightIn(min = 72.dp)
+            .testTag("snoozeLength$choice"),
+        colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = fg),
+        border = BorderStroke(3.dp, Color.White),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            "$choice min",
+            color = fg,
+            fontFamily = FontFamily.Default,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            maxLines = 1
+        )
     }
 }
 

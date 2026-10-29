@@ -31,8 +31,13 @@ class FakeClockReceiver : BroadcastReceiver() {
             } else if (intent.hasExtra(EXTRA_ADVANCE_MS)) {
                 val d = intent.getLongExtra(EXTRA_ADVANCE_MS, 0L)
                 ClockHolder.addDebugOffsetMs(d)
+                ClockHolder.addDebugWallOffsetMs(d)
                 Log.d(TAG, "FakeClock: advanced offset by $d ms")
             }
+            context.sendBroadcast(Intent(com.g7nightalarm.app.alarm.SnoozeController.ACTION_CHECK).apply {
+                setPackage(context.packageName)
+                setClass(context, SnoozeReceiver::class.java)
+            })
         }
     }
 

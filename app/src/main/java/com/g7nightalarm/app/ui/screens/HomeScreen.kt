@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
@@ -58,7 +64,8 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     previewLatest: com.g7nightalarm.app.data.GlucoseReading? = null,
     previewHistory: List<com.g7nightalarm.app.data.GlucoseReading>? = null,
-    previewIsSleep: Boolean? = null
+    previewIsSleep: Boolean? = null,
+    previewSnoozeTimeText: String? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val dao = remember { AppDatabase.get(context).glucoseDao() }
@@ -148,6 +155,19 @@ fun HomeScreen(
             color = MaterialTheme.colorScheme.secondary,
             style = MaterialTheme.typography.headlineLarge
         )
+        val snoozeTimeText = previewSnoozeTimeText ?: run {
+            val until = settings.snoozeUntilWallMs
+            if (com.g7nightalarm.app.alarm.SnoozePolicy.isActive(com.g7nightalarm.app.time.ClockHolder.nowWallMs(), until)) {
+                com.g7nightalarm.app.alarm.SnoozePolicy.formatWakeTime(until)
+            } else {
+                null
+            }
+        }
+        if (snoozeTimeText != null) {
+            SnoozeBanner(snoozeTimeText) {
+                scope.launch { com.g7nightalarm.app.alarm.SnoozeController.cancel(context) }
+            }
+        }
         val cfg = LocalConfiguration.current
         val isNarrow = cfg.screenWidthDp < 500
         if (isNarrow) {
@@ -323,6 +343,61 @@ private fun GlucoseChart(
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             drawPath(path = path, color = Color(0xFF00E5FF), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
+        }
+    }
+}
+
+@Composable
+private fun SnoozeBanner(timeText: String, onCancel: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFF8E1), RoundedCornerShape(16.dp))
+            .padding(16.dp)
+            .testTag("snoozeBanner"),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(
+                    SpanStyle(
+                        color = Color.Black,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Default
+                    )
+                ) {
+                    append("Snoozed – waking you at ")
+                }
+                withStyle(
+                    SpanStyle(
+                        color = Color.Black,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Default
+                    )
+                ) {
+                    append(timeText)
+                }
+            },
+            modifier = Modifier.testTag("snoozeWakeTime")
+        )
+        Button(
+            onClick = onCancel,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .testTag("cancelSnooze"),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black, contentColor = Color.White),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                "Cancel snooze",
+                color = Color.White,
+                fontFamily = FontFamily.Default,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp
+            )
         }
     }
 }

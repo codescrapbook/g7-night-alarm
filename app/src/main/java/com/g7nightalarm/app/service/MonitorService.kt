@@ -17,6 +17,9 @@ import com.g7nightalarm.app.R
 import com.g7nightalarm.app.alarm.AlarmController
 import com.g7nightalarm.app.alarm.AlarmEvaluator
 import com.g7nightalarm.app.alarm.AlarmEvent
+import com.g7nightalarm.app.alarm.SnoozeController
+import com.g7nightalarm.app.alarm.SnoozePolicy
+import com.g7nightalarm.app.schedule.SnoozeScheduler
 import com.g7nightalarm.app.data.AppDatabase
 import com.g7nightalarm.app.data.GlucoseReading
 import com.g7nightalarm.app.mode.AppMode
@@ -119,6 +122,7 @@ class MonitorService : Service() {
                 if (s.monitoringStartedAtMs <= 0L) {
                     settings.update { p -> p[com.g7nightalarm.app.settings.SettingsKeys.monitoringStartedAt] = ClockHolder.nowMs() }
                 }
+                SnoozeScheduler.rescheduleIfPending(this@MonitorService, ClockHolder.nowWallMs(), s.snoozeUntilWallMs)
             } catch (_: Throwable) {}
         }
 
@@ -208,6 +212,30 @@ class MonitorService : Service() {
     private fun handleAlarmEvent(event: AlarmEvent, latest: GlucoseReading?) {
         scope.launch {
             val s = settings.flow.first()
+            var bypassQuiet = false
+            if (s.snoozeUntilWallMs > 0L) {
+                val signalLost = event is AlarmEvent.NoData &&
+                    event.minutes >= s.thresholds.noDataMinutes
+                when (SnoozePolicy.duringSnooze(
+                    nowWallMs = ClockHolder.nowWallMs(),
+                    untilWallMs = s.snoozeUntilWallMs,
+                    snoozedType = s.snoozedAlarmType,
+                    snoozedMgdl = s.snoozedMgdl,
+                    currentMgdl = latest?.mgdl,
+                    signalLost = signalLost,
+                    urgentLowThreshold = s.thresholds.urgentLow
+                )) {
+                    SnoozePolicy.DuringSnooze.RearmDue -> {
+                        SnoozeController.fire(this@MonitorService, force = true)
+                        return@launch
+                    }
+                    SnoozePolicy.DuringSnooze.StayQuiet -> return@launch
+                    SnoozePolicy.DuringSnooze.BreakNow -> {
+                        SnoozeController.cancel(this@MonitorService)
+                        bypassQuiet = true
+                    }
+                }
+            }
             val mode = if (s.sleepMode) AppMode.SLEEP else AppMode.AWAKE
             if (mode == AppMode.SLEEP) {
                 val full = com.g7nightalarm.app.alarm.AlarmPolicy.shouldUseFullAlarm(event, mode, s.safetyNetAlwaysFull)
@@ -224,6 +252,10 @@ class MonitorService : Service() {
             try { android.util.Log.i("MonitorService", "handleAlarmEvent type=${event::class.simpleName} latestMgdl=${latest?.mgdl} awakeType=$awakeAlarmType") } catch (_: Throwable) {}
             // Awake mode behavior with band and snooze
             val now = ClockHolder.nowMs()
+            fun quietSuppressed(lastClear: Long, windowMin: Int): Boolean {
+                if (bypassQuiet) return false
+                return com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, lastClear, windowMin)
+            }
             val awakeVol = s.awakeVolumePercent
             val musicEnabled = s.musicModeEnabled
             val lowUri = s.musicLowUri?.takeIf { it.isNotBlank() }?.let { android.net.Uri.parse(it) }
@@ -233,7 +265,7 @@ class MonitorService : Service() {
             val lwMin = s.awakeLowWarnMin
             val lwMax = s.awakeLowWarnMax
             if (latest != null && latest.mgdl in lwMin..lwMax) {
-                val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)
+                val suppressed = quietSuppressed(s.lastLowWarnClearAt, s.awakeLowWarnRearmMin)
                 try { android.util.Log.i("MonitorService", "LOW_WARN band mgdl=${latest.mgdl} suppressed=$suppressed now=$now lastLowWarnClearAt=${s.lastLowWarnClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                 if (suppressed) {
                     return@launch
@@ -260,7 +292,7 @@ class MonitorService : Service() {
             }
             when (event) {
                 is AlarmEvent.UrgentLow -> {
-                    val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
+                    val suppressed = quietSuppressed(s.lastLowClearAt, s.awakeLowBelow70RearmMin)
                     try { android.util.Log.i("MonitorService", "URGENT_LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
@@ -275,7 +307,7 @@ class MonitorService : Service() {
                     }
                 }
                 is AlarmEvent.Low -> {
-                    val suppressed = com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastLowClearAt, s.awakeLowBelow70RearmMin)
+                    val suppressed = quietSuppressed(s.lastLowClearAt, s.awakeLowBelow70RearmMin)
                     try { android.util.Log.i("MonitorService", "LOW mgdl=${event.valueMgdl} suppressed=$suppressed now=$now lastLowClearAt=${s.lastLowClearAt} type=$awakeAlarmType") } catch (_: Throwable) {}
                     if (suppressed) return@launch
                     if (com.g7nightalarm.app.alarm.AlarmPreemption.shouldStartLowRamp(awakeAlarmType)) {
@@ -290,7 +322,7 @@ class MonitorService : Service() {
                     }
                 }
                 is AlarmEvent.High -> {
-                    if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastHighClearAt, s.awakeHighRearmMin)) return@launch
+                    if (quietSuppressed(s.lastHighClearAt, s.awakeHighRearmMin)) return@launch
                     startAwakeNotification(AlarmActionReceiver.TYPE_HIGH, "High", "Glucose high")
                     if (musicEnabled) {
                         if (highUri != null) {
@@ -311,7 +343,7 @@ class MonitorService : Service() {
                                 "NO_DATA minutes=${event.minutes} now=$now lastSignalClearAt=${s.lastSignalClearAt} music=$musicEnabled awakeVol=$awakeVol"
                             )
                         } catch (_: Throwable) {}
-                        if (com.g7nightalarm.app.alarm.AlarmPolicy.shouldSuppressBySnooze(now, s.lastSignalClearAt, s.awakeSignalLostRearmMin)) return@launch
+                        if (quietSuppressed(s.lastSignalClearAt, s.awakeSignalLostRearmMin)) return@launch
                         startAwakeNotification(AlarmActionReceiver.TYPE_SIGNAL, "Signal lost", "No data for ${event.minutes} minutes")
                         if (musicEnabled) {
                             if (sigUri != null) {

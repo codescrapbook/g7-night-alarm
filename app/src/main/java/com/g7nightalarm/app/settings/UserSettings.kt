@@ -54,7 +54,15 @@ data class SettingsState(
     val lastLowWarnClearAt: Long = 0L,
     val lastLowClearAt: Long = 0L,
     val lastHighClearAt: Long = 0L,
-    val lastSignalClearAt: Long = 0L
+    val lastSignalClearAt: Long = 0L,
+    /** How long a user snooze lasts. One of 5, 10, 15, 20. */
+    val snoozeLengthMinutes: Int = 10,
+    /** Wall-clock millis when the snooze re-alarm is due. 0 when none. */
+    val snoozeUntilWallMs: Long = 0L,
+    /** Alarm type that was snoozed, used to detect a worse event. */
+    val snoozedAlarmType: String = "",
+    /** Glucose at the moment of snooze, mg/dL. Null when unknown. */
+    val snoozedMgdl: Double? = null
 )
 
 object SettingsKeys {
@@ -90,6 +98,10 @@ object SettingsKeys {
     val lastReadingAt = longPreferencesKey("last_reading_at_elapsed")
     // Monotonic timestamp when monitoring started
     val monitoringStartedAt = longPreferencesKey("monitoring_started_at_elapsed")
+    val snoozeLengthMinutes = intPreferencesKey("snooze_length_minutes")
+    val snoozeUntilWallMs = longPreferencesKey("snooze_until_wall_ms")
+    val snoozedAlarmType = stringPreferencesKey("snoozed_alarm_type")
+    val snoozedMgdl = doublePreferencesKey("snoozed_mgdl")
 }
 
 class SettingsRepository(private val context: Context) {
@@ -127,7 +139,13 @@ class SettingsRepository(private val context: Context) {
             lastLowWarnClearAt = prefs[SettingsKeys.lastLowWarnClearAt] ?: 0L,
             lastLowClearAt = prefs[SettingsKeys.lastLowClearAt] ?: 0L,
             lastHighClearAt = prefs[SettingsKeys.lastHighClearAt] ?: 0L,
-            lastSignalClearAt = prefs[SettingsKeys.lastSignalClearAt] ?: 0L
+            lastSignalClearAt = prefs[SettingsKeys.lastSignalClearAt] ?: 0L,
+            snoozeLengthMinutes = (prefs[SettingsKeys.snoozeLengthMinutes] ?: 10).let { m ->
+                if (m == 5 || m == 10 || m == 15 || m == 20) m else 10
+            },
+            snoozeUntilWallMs = prefs[SettingsKeys.snoozeUntilWallMs] ?: 0L,
+            snoozedAlarmType = prefs[SettingsKeys.snoozedAlarmType] ?: "",
+            snoozedMgdl = prefs[SettingsKeys.snoozedMgdl]
         )
     }
 

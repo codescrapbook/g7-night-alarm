@@ -183,8 +183,16 @@ class EndToEndInstrumentedTest {
             )
         }
         Thread.sleep(150)
-        // Reset fake clock offset
+        // Reset fake clock offset and any leftover user snooze
         clockReset()
+        runBlocking {
+            SettingsRepository(context).update { p ->
+                p[SettingsKeys.snoozeUntilWallMs] = 0L
+                p[SettingsKeys.snoozedAlarmType] = ""
+                p.remove(SettingsKeys.snoozedMgdl)
+            }
+        }
+        com.g7nightalarm.app.schedule.SnoozeScheduler.cancel(context)
     }
 
     @Test
@@ -239,6 +247,58 @@ class EndToEndInstrumentedTest {
         // Try to restore explicitly if not already
         am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
         Assert.assertEquals("Alarm volume should be restored to previous level.", prev, am.getStreamVolume(AudioManager.STREAM_ALARM))
+    }
+
+    @Test
+    fun snooze_stopsSound_and_realarmsWhenClockAdvances() {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val prev = am.getStreamVolume(AudioManager.STREAM_ALARM)
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        try {
+            runBlocking {
+                SettingsRepository(context).update { p ->
+                    p[SettingsKeys.sleepMode] = true
+                    p[SettingsKeys.snoozeLengthMinutes] = 10
+                }
+            }
+            sendBgEstimate(52.0)
+            val urgentVisible = device.wait(Until.hasObject(By.textContains("URGENT")), 15_000)
+            Assert.assertTrue("Expected URGENT title visible.", urgentVisible)
+            Assert.assertTrue(device.wait(Until.hasObject(By.textContains("SNOOZE")), 5_000))
+            var atMax = false
+            repeat(120) {
+                if (am.getStreamVolume(AudioManager.STREAM_ALARM) == max) {
+                    atMax = true
+                    return@repeat
+                }
+                Thread.sleep(100)
+            }
+            Assert.assertTrue("Alarm volume should reach max before snooze.", atMax)
+            device.findObject(By.textContains("SNOOZE")).click()
+            var stopped = false
+            repeat(30) {
+                if (am.getStreamVolume(AudioManager.STREAM_ALARM) != max) {
+                    stopped = true
+                    return@repeat
+                }
+                Thread.sleep(500)
+            }
+            Assert.assertTrue("Snooze should stop the alarm sound.", stopped)
+            device.wait(Until.gone(By.textContains("URGENT")), 8_000)
+            clockAdvance(10L * 60L * 1000L + 1_000L)
+            val again = device.wait(Until.hasObject(By.textContains("URGENT")), 15_000) ||
+                device.wait(Until.hasObject(By.textContains("CHECK-IN")), 5_000)
+            Assert.assertTrue("Snooze re-alarm should bring the alarm activity back.", again)
+            Assert.assertTrue(device.wait(Until.hasObject(By.textContains("SNOOZE")), 5_000))
+            device.findObject(By.text("HOLD"))?.longClick()
+        } finally {
+            am.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
+            clockReset()
+            runBlocking {
+                SettingsRepository(context).update { p -> p[SettingsKeys.sleepMode] = false }
+                com.g7nightalarm.app.alarm.SnoozeController.cancel(context)
+            }
+        }
     }
 
     @Test

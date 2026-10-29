@@ -18,6 +18,8 @@ interface Clock {
 object ClockHolder : Clock {
     // Debug offset applied to elapsedRealtime; zero in production.
     private val debugOffsetMs = AtomicLong(0L)
+    // Debug offset applied to the wall clock used by snooze alarms. Zero in production.
+    private val debugWallOffsetMs = AtomicLong(0L)
 
     fun setDebugOffsetMs(offsetMs: Long) {
         debugOffsetMs.set(offsetMs)
@@ -27,12 +29,20 @@ object ClockHolder : Clock {
         debugOffsetMs.addAndGet(deltaMs)
     }
 
+    fun addDebugWallOffsetMs(deltaMs: Long) {
+        debugWallOffsetMs.addAndGet(deltaMs)
+    }
+
     fun clearDebugOffset() {
         debugOffsetMs.set(0L)
+        debugWallOffsetMs.set(0L)
     }
 
     override fun nowMs(): Long {
         return SystemClock.elapsedRealtime() + debugOffsetMs.get()
     }
+
+    /** Wall clock for snooze wake-ups. Tests advance it with the fake clock. */
+    fun nowWallMs(): Long = System.currentTimeMillis() + debugWallOffsetMs.get()
 }
 
